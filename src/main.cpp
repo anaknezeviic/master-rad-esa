@@ -1,4 +1,5 @@
 #include "esa.hpp"
+#include "repeats.hpp"
 
 #include <iostream>
 #include <string>
@@ -7,62 +8,31 @@
 int main()
 {
     const std::string text =
-        "MISSISSIPPI";
+        "BANANA";
 
     const EnhancedSuffixArray esa =
         build_esa(text);
 
-    const std::vector<LCPIntervalNode> nodes =
-        build_lcp_interval_tree(
-            esa.lcp_array
-        );
+    const std::vector<MaximalRepeatedPair> pairs =
+        find_maximal_repeated_pairs(esa);
 
-    for (std::size_t i = 0;
-         i < nodes.size();
-         ++i)
-    {
-        const LCPIntervalNode& node =
-            nodes[i];
+    std::cout << "Text: "
+              << text
+              << "\n\n";
+
+    std::cout << "Maximal repeated pairs:\n";
+
+    for (const MaximalRepeatedPair& pair : pairs) {
 
         std::cout
-            << "Node "
-            << i
-            << ": "
-            << node.lcp_value
-            << "-["
-            << node.left
-            << ".."
-            << node.right
-            << "]";
-
-        if (node.lcp_value > 0) {
-
-            const std::string repeat =
-                text.substr(
-                    esa.suffix_array[node.left],
-                    node.lcp_value
-                );
-
-            std::cout
-                << " -> "
-                << repeat;
-        }
-        else {
-            std::cout << " -> ROOT";
-        }
-
-        std::cout << "\n  children: ";
-
-        if (node.children.empty()) {
-            std::cout << "none";
-        }
-        else {
-            for (int child : node.children) {
-                std::cout << child << ' ';
-            }
-        }
-
-        std::cout << "\n\n";
+            << pair.sequence
+            << " (length = "
+            << pair.length
+            << ") positions: "
+            << pair.first_position
+            << ", "
+            << pair.second_position
+            << '\n';
     }
 
     return 0;

@@ -2,6 +2,7 @@
 
 #include <set>
 #include <vector>
+#include <algorithm>
 
 std::vector<Repeat> find_supermaximal_repeats(
     const EnhancedSuffixArray& esa
@@ -81,4 +82,156 @@ std::vector<Repeat> find_supermaximal_repeats(
     }
 
     return repeats;
+}
+
+std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
+    const EnhancedSuffixArray& esa
+)
+{
+    std::vector<MaximalRepeatedPair> pairs;
+
+    const std::vector<LCPIntervalNode> nodes =
+        build_lcp_interval_tree(esa.lcp_array);
+
+    const int n =
+        static_cast<int>(esa.text.size());
+
+    for (const LCPIntervalNode& node : nodes) {
+
+        
+        if (node.lcp_value == 0) {
+            continue;
+        }
+
+        const int repeat_length =
+            node.lcp_value;
+
+        
+        std::vector<std::vector<int>> groups;
+
+        int current = node.left;
+
+        std::vector<int> sorted_children =
+            node.children;
+
+        std::sort(
+            sorted_children.begin(),
+            sorted_children.end(),
+            [&](int first, int second)
+            {
+                return nodes[first].left <
+                       nodes[second].left;
+            }
+        );
+
+        for (int child_index : sorted_children) {
+
+            const LCPIntervalNode& child =
+                nodes[child_index];
+
+           
+            while (current < child.left) {
+
+                groups.push_back({
+                    esa.suffix_array[current]
+                });
+
+                ++current;
+            }
+
+           
+            std::vector<int> child_positions;
+
+            for (int k = child.left;
+                 k <= child.right;
+                 ++k)
+            {
+                child_positions.push_back(
+                    esa.suffix_array[k]
+                );
+            }
+
+            groups.push_back(child_positions);
+
+            current = child.right + 1;
+        }
+
+       
+        while (current <= node.right) {
+
+            groups.push_back({
+                esa.suffix_array[current]
+            });
+
+            ++current;
+        }
+
+        for (std::size_t first_group = 0;
+             first_group < groups.size();
+             ++first_group)
+        {
+            for (std::size_t second_group =
+                     first_group + 1;
+                 second_group < groups.size();
+                 ++second_group)
+            {
+                for (int first_position :
+                     groups[first_group])
+                {
+                    for (int second_position :
+                         groups[second_group])
+                    {
+                        const char first_left =
+                            (first_position == 0)
+                            ? '$'
+                            : esa.text[
+                                first_position - 1
+                              ];
+
+                        const char second_left =
+                            (second_position == 0)
+                            ? '$'
+                            : esa.text[
+                                second_position - 1
+                              ];
+
+                        if (
+                            first_left ==
+                            second_left
+                        ) {
+                            continue;
+                        }
+
+                        int p1 = first_position;
+                        int p2 = second_position;
+
+                        if (p2 < p1) {
+                            std::swap(p1, p2);
+                        }
+
+                        MaximalRepeatedPair pair;
+
+                        pair.length =
+                            repeat_length;
+
+                        pair.sequence =
+                            esa.text.substr(
+                                p1,
+                                repeat_length
+                            );
+
+                        pair.first_position =
+                            p1;
+
+                        pair.second_position =
+                            p2;
+
+                        pairs.push_back(pair);
+                    }
+                }
+            }
+        }
+    }
+
+    return pairs;
 }
