@@ -7,7 +7,8 @@
 #include <set>
 
 std::vector<Repeat> find_supermaximal_repeats(
-    const EnhancedSuffixArray& esa
+    const EnhancedSuffixArray& esa,
+     const RepeatOptions& options
 )
 {
     std::vector<Repeat> repeats;
@@ -19,6 +20,9 @@ std::vector<Repeat> find_supermaximal_repeats(
 
         const int lcp_value = interval.lcp_value;
 
+        if (lcp_value < options.min_length) {
+            continue;
+        }
         // Condition 1:
         // The interval must be a local maximum in the LCP table.
         bool is_local_maximum = true;
@@ -87,7 +91,8 @@ std::vector<Repeat> find_supermaximal_repeats(
 }
 
 std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
-    const EnhancedSuffixArray& esa
+    const EnhancedSuffixArray& esa,
+     const RepeatOptions& options
 )
 {
     std::vector<MaximalRepeatedPair> pairs;
@@ -108,7 +113,10 @@ std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
         const int repeat_length =
             node.lcp_value;
 
-        
+        if (repeat_length < options.min_length) {
+            continue;
+        }
+
         std::vector<std::vector<int>> groups;
 
         int current = node.left;
@@ -239,11 +247,12 @@ std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
 }
 
 std::vector<Repeat> find_maximal_repeats(
-    const EnhancedSuffixArray& esa
+    const EnhancedSuffixArray& esa,
+     const RepeatOptions& options
 )
 {
     const std::vector<MaximalRepeatedPair> pairs =
-        find_maximal_repeated_pairs(esa);
+        find_maximal_repeated_pairs(esa, options);
 
     std::map<std::string, std::set<int>> grouped_positions;
 

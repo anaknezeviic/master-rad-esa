@@ -9,13 +9,19 @@ int main()
 {
     const std::string text = "MISSISSIPPI";
 
+    RepeatOptions options;
+    options.min_length = 2;
+
     const EnhancedSuffixArray esa =
         build_esa(text);
 
     const std::vector<Repeat> repeats =
-        find_maximal_repeats(esa);
+        find_maximal_repeats(esa, options);
 
-    std::cout << "Text: " << text << "\n\n";
+    std::cout << "Text: " << text << "\n";
+    std::cout << "Minimum repeat length: "
+              << options.min_length
+              << "\n\n";
 
     std::cout << "Maximal repeats:\n";
 
