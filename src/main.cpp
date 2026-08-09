@@ -1,4 +1,5 @@
 #include "esa.hpp"
+#include "repeats.hpp"
 
 #include <iostream>
 #include <string>
@@ -6,46 +7,31 @@
 
 int main()
 {
-    const std::string text = "MISSISSIPPI";
+    const std::string text = "ACGTCGACGTAG";
 
     const EnhancedSuffixArray esa =
         build_esa(text);
 
-    const std::vector<LCPInterval> intervals =
-        build_lcp_intervals(esa.lcp_array);
+    const std::vector<Repeat> repeats =
+        find_supermaximal_repeats(esa);
 
     std::cout << "Text: " << text << "\n\n";
 
-    std::cout << "SA:\n";
-    for (int value : esa.suffix_array) {
-        std::cout << value << ' ';
-    }
+    std::cout << "Supermaximal repeats:\n";
 
-    std::cout << "\n\nLCP:\n";
-    for (int value : esa.lcp_array) {
-        std::cout << value << ' ';
-    }
-
-    std::cout << "\n\nLCP intervals:\n";
-
-    for (const LCPInterval& interval : intervals) {
-
-        const std::string repeat =
-            text.substr(
-                esa.suffix_array[interval.left],
-                interval.lcp_value
-            );
+    for (const Repeat& repeat : repeats) {
 
         std::cout
-            << interval.lcp_value
-            << "-["
-            << interval.left
-            << ".."
-            << interval.right
-            << "]"
-            << " -> "
-            << repeat
-            << '\n';
+            << repeat.sequence
+            << " (length = "
+            << repeat.length
+            << ") positions: ";
+
+        for (int position : repeat.positions) {
+            std::cout << position << ' ';
+        }
+
+        std::cout << '\n';
     }
 
     return 0;
