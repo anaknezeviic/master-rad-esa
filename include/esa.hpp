@@ -4,6 +4,13 @@
 #include <string>
 #include <vector>
 
+struct LCPInterval
+{
+    int lcp_value;
+    int left;
+    int right;
+};
+
 struct EnhancedSuffixArray
 {
     std::string text;
@@ -16,5 +23,9 @@ struct EnhancedSuffixArray
 };
 
 EnhancedSuffixArray build_esa(const std::string& text);
+
+std::vector<LCPInterval> build_lcp_intervals(
+    const std::vector<int>& lcp_array
+);
 
 #endif
