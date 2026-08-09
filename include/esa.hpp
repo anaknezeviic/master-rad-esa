@@ -11,6 +11,15 @@ struct LCPInterval
     int right;
 };
 
+struct LCPIntervalNode
+{
+    int lcp_value;
+    int left;
+    int right;
+
+    std::vector<int> children;
+};
+
 struct EnhancedSuffixArray
 {
     std::string text;
@@ -25,6 +34,10 @@ struct EnhancedSuffixArray
 EnhancedSuffixArray build_esa(const std::string& text);
 
 std::vector<LCPInterval> build_lcp_intervals(
+    const std::vector<int>& lcp_array
+);
+
+std::vector<LCPIntervalNode> build_lcp_interval_tree(
     const std::vector<int>& lcp_array
 );
 
