@@ -30,4 +30,8 @@ std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
     const EnhancedSuffixArray& esa
 );
 
+std::vector<Repeat> find_maximal_repeats(
+    const EnhancedSuffixArray& esa
+);
+
 #endif

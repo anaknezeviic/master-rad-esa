@@ -7,32 +7,31 @@
 
 int main()
 {
-    const std::string text =
-        "BANANA";
+    const std::string text = "MISSISSIPPI";
 
     const EnhancedSuffixArray esa =
         build_esa(text);
 
-    const std::vector<MaximalRepeatedPair> pairs =
-        find_maximal_repeated_pairs(esa);
+    const std::vector<Repeat> repeats =
+        find_maximal_repeats(esa);
 
-    std::cout << "Text: "
-              << text
-              << "\n\n";
+    std::cout << "Text: " << text << "\n\n";
 
-    std::cout << "Maximal repeated pairs:\n";
+    std::cout << "Maximal repeats:\n";
 
-    for (const MaximalRepeatedPair& pair : pairs) {
+    for (const Repeat& repeat : repeats) {
 
         std::cout
-            << pair.sequence
+            << repeat.sequence
             << " (length = "
-            << pair.length
-            << ") positions: "
-            << pair.first_position
-            << ", "
-            << pair.second_position
-            << '\n';
+            << repeat.length
+            << ") positions: ";
+
+        for (int position : repeat.positions) {
+            std::cout << position << ' ';
+        }
+
+        std::cout << '\n';
     }
 
     return 0;

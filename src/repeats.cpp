@@ -3,6 +3,8 @@
 #include <set>
 #include <vector>
 #include <algorithm>
+#include <map>
+#include <set>
 
 std::vector<Repeat> find_supermaximal_repeats(
     const EnhancedSuffixArray& esa
@@ -234,4 +236,45 @@ std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
     }
 
     return pairs;
+}
+
+std::vector<Repeat> find_maximal_repeats(
+    const EnhancedSuffixArray& esa
+)
+{
+    const std::vector<MaximalRepeatedPair> pairs =
+        find_maximal_repeated_pairs(esa);
+
+    std::map<std::string, std::set<int>> grouped_positions;
+
+    for (const MaximalRepeatedPair& pair : pairs) {
+        grouped_positions[pair.sequence].insert(
+            pair.first_position
+        );
+
+        grouped_positions[pair.sequence].insert(
+            pair.second_position
+        );
+    }
+
+    std::vector<Repeat> repeats;
+
+    for (const auto& [sequence, positions] :
+         grouped_positions)
+    {
+        Repeat repeat;
+
+        repeat.sequence = sequence;
+        repeat.length =
+            static_cast<int>(sequence.size());
+
+        repeat.positions.assign(
+            positions.begin(),
+            positions.end()
+        );
+
+        repeats.push_back(repeat);
+    }
+
+    return repeats;
 }
