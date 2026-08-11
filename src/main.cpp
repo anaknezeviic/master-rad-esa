@@ -1,8 +1,10 @@
 #include "esa.hpp"
 #include "fasta.hpp"
+#include "output.hpp"
 #include "repeats.hpp"
 
 #include <exception>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -41,6 +43,21 @@ int main(int argc, char* argv[])
     }
 
     const std::string file_path = argv[1];
+
+    const std::filesystem::path input_path(file_path);
+
+    const std::string input_name =
+        input_path.stem().string();
+
+    const std::string maximal_output_path =
+        "data/processed/" +
+        input_name +
+        "_maximal.csv";
+
+    const std::string supermaximal_output_path =
+        "data/processed/" +
+        input_name +
+        "_supermaximal.csv";
 
     RepeatOptions options;
 
@@ -143,9 +160,17 @@ int main(int argc, char* argv[])
                 }
             }
 
-            std::cout << '\n';
-        }
+            write_repeats_csv(
+                maximal_output_path,
+                maximal_repeats
+            );
 
+            std::cout
+                << "\nMaximal repeats written to: "
+                << maximal_output_path
+                << "\n\n";
+        }
+        
         if (
             options.type == RepeatType::Supermaximal ||
             options.type == RepeatType::Both
@@ -183,6 +208,16 @@ int main(int argc, char* argv[])
                     std::cout << '\n';
                 }
             }
+
+            write_repeats_csv(
+                supermaximal_output_path,
+                supermaximal_repeats
+            );
+
+            std::cout
+                << "\nSupermaximal repeats written to: "
+                << supermaximal_output_path
+                << '\n';
         }
     }
     catch (const std::exception& error) {
