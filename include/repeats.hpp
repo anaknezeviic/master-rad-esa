@@ -6,9 +6,18 @@
 #include <string>
 #include <vector>
 
+
+enum class RepeatType
+{
+    Maximal,
+    Supermaximal,
+    Both
+};
+
 struct RepeatOptions
 {
     int min_length = 1;
+    RepeatType type = RepeatType::Both;
 };
 
 struct Repeat
