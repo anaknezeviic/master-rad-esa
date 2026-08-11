@@ -1,9 +1,8 @@
 #include "repeats.hpp"
 
-#include <set>
 #include <vector>
 #include <algorithm>
-#include <map>
+#include <string>
 #include <set>
 
 std::vector<Repeat> find_supermaximal_repeats(
@@ -248,38 +247,76 @@ std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
 
 std::vector<Repeat> find_maximal_repeats(
     const EnhancedSuffixArray& esa,
-     const RepeatOptions& options
+    const RepeatOptions& options
 )
 {
     const std::vector<MaximalRepeatedPair> pairs =
-        find_maximal_repeated_pairs(esa, options);
+        find_maximal_repeated_pairs(
+            esa,
+            options
+        );
 
-    std::map<std::string, std::set<int>> grouped_positions;
+    //A substring is a maximal repeat if there exists
+    //at least one maximal repeated pair for it.
+    std::set<std::string> maximal_sequences;
 
     for (const MaximalRepeatedPair& pair : pairs) {
-        grouped_positions[pair.sequence].insert(
-            pair.first_position
-        );
-
-        grouped_positions[pair.sequence].insert(
-            pair.second_position
-        );
+        maximal_sequences.insert(pair.sequence);
     }
+
+    //LCP intervals contain all occurrences of their
+    //corresponding repeated substring.
+    const std::vector<LCPIntervalNode> nodes =
+        build_lcp_interval_tree(
+            esa.lcp_array
+        );
 
     std::vector<Repeat> repeats;
 
-    for (const auto& [sequence, positions] :
-         grouped_positions)
-    {
+    for (const LCPIntervalNode& node : nodes) {
+
+        if (node.lcp_value == 0) {
+            continue;
+        }
+
+        if (node.lcp_value < options.min_length) {
+            continue;
+        }
+
+        const std::string sequence =
+            esa.text.substr(
+                esa.suffix_array[node.left],
+                node.lcp_value
+            );
+
+        //If no maximal repeated pair exists for this
+        //sequence, it is not a maximal repeat
+        if (
+            maximal_sequences.find(sequence) ==
+            maximal_sequences.end()
+        ) {
+            continue;
+        }
+
         Repeat repeat;
 
         repeat.sequence = sequence;
-        repeat.length =
-            static_cast<int>(sequence.size());
+        repeat.length = node.lcp_value;
 
-        repeat.positions.assign(
-            positions.begin(),
-            positions.end()
+        //Every suffix-array position in this LCP interval
+        //corresponds to one occurrence of the repeat
+        for (int k = node.left;
+             k <= node.right;
+             ++k)
+        {
+            repeat.positions.push_back(
+                esa.suffix_array[k]
+            );
+        }
+
+        std::sort(
+            repeat.positions.begin(),
+            repeat.positions.end()
         );
 
         repeats.push_back(repeat);
