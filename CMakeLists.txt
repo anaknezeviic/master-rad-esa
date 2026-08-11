@@ -12,6 +12,7 @@ add_executable(master_rad_esa
     src/lcp.cpp
     src/esa.cpp
     src/repeats.cpp
+    src/fasta.cpp
 )
 
 target_include_directories(master_rad_esa
