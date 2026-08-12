@@ -4,25 +4,61 @@
 #include "suffix_array.hpp"
 
 #include <stack>
+#include <chrono>
 
-EnhancedSuffixArray build_esa(const std::string& text)
+EnhancedSuffixArray build_esa(
+    const std::string& text,
+    ESAConstructionMetrics* metrics
+)
 {
+    using Clock = std::chrono::steady_clock;
+
     EnhancedSuffixArray esa;
 
     esa.text = text;
 
-    esa.suffix_array = build_suffix_array(text);
+    //Suffix Array construction
+    const auto sa_start = Clock::now();
 
-    const int n = static_cast<int>(text.size());
+    esa.suffix_array =
+        build_suffix_array(text);
+
+    const auto sa_end = Clock::now();
+
+    const int n =
+        static_cast<int>(text.size());
+
+    //Inverse Suffix Array construction
+    const auto inverse_sa_start =
+        Clock::now();
 
     esa.inverse_suffix_array.resize(n);
 
     for (int i = 0; i < n; ++i) {
-        esa.inverse_suffix_array[esa.suffix_array[i]] = i;
+        esa.inverse_suffix_array[
+            esa.suffix_array[i]
+        ] = i;
     }
 
+    const auto inverse_sa_end =
+        Clock::now();
+
+    //LCP construction
+    const auto lcp_start =
+        Clock::now();
+
     esa.lcp_array =
-        build_lcp_array(text, esa.suffix_array);
+        build_lcp_array(
+            text,
+            esa.suffix_array
+        );
+
+    const auto lcp_end =
+        Clock::now();
+
+    //BWT construction
+    const auto bwt_start =
+        Clock::now();
 
     esa.bwt.resize(n);
 
@@ -33,9 +69,39 @@ EnhancedSuffixArray build_esa(const std::string& text)
 
         if (suffix_position == 0) {
             esa.bwt[i] = '$';
-        } else {
-            esa.bwt[i] = text[suffix_position - 1];
         }
+        else {
+            esa.bwt[i] =
+                text[suffix_position - 1];
+        }
+    }
+
+    const auto bwt_end =
+        Clock::now();
+
+    //Store performance metrics if requested
+    if (metrics != nullptr) {
+
+        metrics->suffix_array_time_ms =
+            std::chrono::duration<double, std::milli>(
+                sa_end - sa_start
+            ).count();
+
+        metrics->inverse_suffix_array_time_ms =
+            std::chrono::duration<double, std::milli>(
+                inverse_sa_end -
+                inverse_sa_start
+            ).count();
+
+        metrics->lcp_time_ms =
+            std::chrono::duration<double, std::milli>(
+                lcp_end - lcp_start
+            ).count();
+
+        metrics->bwt_time_ms =
+            std::chrono::duration<double, std::milli>(
+                bwt_end - bwt_start
+            ).count();
     }
 
     return esa;

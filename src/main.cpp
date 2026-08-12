@@ -3,6 +3,7 @@
 #include "output.hpp"
 #include "repeats.hpp"
 
+#include <chrono>
 #include <exception>
 #include <filesystem>
 #include <iostream>
@@ -30,8 +31,12 @@ RepeatType parse_repeat_type(const std::string& value)
     );
 }
 
+using Clock = std::chrono::steady_clock;
+
 int main(int argc, char* argv[])
 {
+    const auto total_start = Clock::now();
+
     if (argc < 2) {
         std::cerr
             << "Usage:\n"
@@ -62,6 +67,7 @@ int main(int argc, char* argv[])
     RepeatOptions options;
 
     try {
+        // Parse command-line arguments.
         for (int i = 2; i < argc; ++i) {
 
             const std::string argument = argv[i];
@@ -101,8 +107,18 @@ int main(int argc, char* argv[])
             }
         }
 
+        // FASTA parsing.
+        const auto fasta_start = Clock::now();
+
         const FastaRecord record =
             read_fasta(file_path);
+
+        const auto fasta_end = Clock::now();
+
+        const double fasta_time_ms =
+            std::chrono::duration<double, std::milli>(
+                fasta_end - fasta_start
+            ).count();
 
         std::cout
             << "FASTA header: "
@@ -119,18 +135,46 @@ int main(int argc, char* argv[])
             << options.min_length
             << "\n\n";
 
-        const EnhancedSuffixArray esa =
-            build_esa(record.sequence);
+        // ESA construction.
+        const auto esa_start = Clock::now();
 
+        ESAConstructionMetrics esa_metrics;
+
+        const EnhancedSuffixArray esa =
+            build_esa(
+                record.sequence,
+                &esa_metrics
+            );
+
+        const auto esa_end = Clock::now();
+
+        const double esa_time_ms =
+            std::chrono::duration<double, std::milli>(
+                esa_end - esa_start
+            ).count();
+
+        double maximal_time_ms = 0.0;
+        double supermaximal_time_ms = 0.0;
+
+        // Maximal repeats.
         if (
             options.type == RepeatType::Maximal ||
             options.type == RepeatType::Both
         ) {
+            const auto maximal_start = Clock::now();
+
             const std::vector<Repeat> maximal_repeats =
                 find_maximal_repeats(
                     esa,
                     options
                 );
+
+            const auto maximal_end = Clock::now();
+
+            maximal_time_ms =
+                std::chrono::duration<double, std::milli>(
+                    maximal_end - maximal_start
+                ).count();
 
             std::cout
                 << "Maximal repeats:\n";
@@ -170,16 +214,29 @@ int main(int argc, char* argv[])
                 << maximal_output_path
                 << "\n\n";
         }
-        
+
+        // Supermaximal repeats.
         if (
             options.type == RepeatType::Supermaximal ||
             options.type == RepeatType::Both
         ) {
+            const auto supermaximal_start =
+                Clock::now();
+
             const std::vector<Repeat> supermaximal_repeats =
                 find_supermaximal_repeats(
                     esa,
                     options
                 );
+
+            const auto supermaximal_end =
+                Clock::now();
+
+            supermaximal_time_ms =
+                std::chrono::duration<double, std::milli>(
+                    supermaximal_end -
+                    supermaximal_start
+                ).count();
 
             std::cout
                 << "Supermaximal repeats:\n";
@@ -219,6 +276,66 @@ int main(int argc, char* argv[])
                 << supermaximal_output_path
                 << '\n';
         }
+
+        // Total runtime.
+        const auto total_end = Clock::now();
+
+        const double total_time_ms =
+            std::chrono::duration<double, std::milli>(
+                total_end - total_start
+            ).count();
+
+        //Performance summary
+        std::cout
+        << "\nPerformance:\n"
+        << "FASTA parsing: "
+        << fasta_time_ms
+        << " ms\n"
+
+        << "ESA construction: "
+        << esa_time_ms
+        << " ms\n"
+
+        << "  Suffix Array: "
+        << esa_metrics.suffix_array_time_ms
+        << " ms\n"
+
+        << "  Inverse Suffix Array: "
+        << esa_metrics.inverse_suffix_array_time_ms
+        << " ms\n"
+
+        << "  LCP Array: "
+        << esa_metrics.lcp_time_ms
+        << " ms\n"
+
+        << "  BWT: "
+        << esa_metrics.bwt_time_ms
+        << " ms\n";
+
+        if (
+            options.type == RepeatType::Maximal ||
+            options.type == RepeatType::Both
+        ) {
+            std::cout
+                << "Maximal repeat detection: "
+                << maximal_time_ms
+                << " ms\n";
+        }
+
+        if (
+            options.type == RepeatType::Supermaximal ||
+            options.type == RepeatType::Both
+        ) {
+            std::cout
+                << "Supermaximal repeat detection: "
+                << supermaximal_time_ms
+                << " ms\n";
+        }
+
+        std::cout
+            << "Total runtime: "
+            << total_time_ms
+            << " ms\n";
     }
     catch (const std::exception& error) {
 
