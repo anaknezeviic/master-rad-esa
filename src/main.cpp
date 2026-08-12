@@ -2,6 +2,7 @@
 #include "fasta.hpp"
 #include "output.hpp"
 #include "repeats.hpp"
+#include "memory.hpp"
 
 #include <chrono>
 #include <exception>
@@ -156,6 +157,9 @@ int main(int argc, char* argv[])
         double maximal_time_ms = 0.0;
         double supermaximal_time_ms = 0.0;
 
+        std::size_t maximal_repeat_count = 0;
+        std::size_t supermaximal_repeat_count = 0;
+
         // Maximal repeats.
         if (
             options.type == RepeatType::Maximal ||
@@ -168,6 +172,9 @@ int main(int argc, char* argv[])
                     esa,
                     options
                 );
+
+            maximal_repeat_count =
+                maximal_repeats.size();
 
             const auto maximal_end = Clock::now();
 
@@ -229,6 +236,9 @@ int main(int argc, char* argv[])
                     options
                 );
 
+            supermaximal_repeat_count =
+                supermaximal_repeats.size();
+
             const auto supermaximal_end =
                 Clock::now();
 
@@ -285,32 +295,67 @@ int main(int argc, char* argv[])
                 total_end - total_start
             ).count();
 
-        //Performance summary
+        // ESA memory estimate.
+        const double esa_memory_kb =
+            static_cast<double>(
+                esa_metrics.estimated_memory_bytes
+            ) / 1024.0;
+
+        const double esa_memory_mb =
+            esa_memory_kb / 1024.0;
+
+        const std::size_t peak_memory_bytes = get_peak_memory_bytes();
+
+        const double peak_memory_mb =
+            static_cast<double>(
+                peak_memory_bytes
+            ) / (1024.0 * 1024.0);
+
+        // Performance summary.
         std::cout
-        << "\nPerformance:\n"
-        << "FASTA parsing: "
-        << fasta_time_ms
-        << " ms\n"
+            << "\nPerformance:\n"
+            << "FASTA parsing: "
+            << fasta_time_ms
+            << " ms\n"
 
-        << "ESA construction: "
-        << esa_time_ms
-        << " ms\n"
+            << "ESA construction: "
+            << esa_time_ms
+            << " ms\n"
 
-        << "  Suffix Array: "
-        << esa_metrics.suffix_array_time_ms
-        << " ms\n"
+            << "  Suffix Array: "
+            << esa_metrics.suffix_array_time_ms
+            << " ms\n"
 
-        << "  Inverse Suffix Array: "
-        << esa_metrics.inverse_suffix_array_time_ms
-        << " ms\n"
+            << "  Inverse Suffix Array: "
+            << esa_metrics.inverse_suffix_array_time_ms
+            << " ms\n"
 
-        << "  LCP Array: "
-        << esa_metrics.lcp_time_ms
-        << " ms\n"
+            << "  LCP Array: "
+            << esa_metrics.lcp_time_ms
+            << " ms\n"
 
-        << "  BWT: "
-        << esa_metrics.bwt_time_ms
-        << " ms\n";
+            << "  BWT: "
+            << esa_metrics.bwt_time_ms
+            << " ms\n";
+
+        std::cout
+            << "ESA estimated memory: ";
+
+        if (esa_memory_mb >= 1.0) {
+            std::cout
+                << esa_memory_mb
+                << " MB\n";
+        }
+        else {
+            std::cout
+                << esa_memory_kb
+                << " KB\n";
+        }
+
+        std::cout
+            << "Peak process memory: "
+            << peak_memory_mb
+            << " MB\n";
 
         if (
             options.type == RepeatType::Maximal ||
@@ -319,7 +364,10 @@ int main(int argc, char* argv[])
             std::cout
                 << "Maximal repeat detection: "
                 << maximal_time_ms
-                << " ms\n";
+                << " ms\n"
+                << "Maximal repeats found: "
+                << maximal_repeat_count
+                << '\n';
         }
 
         if (
@@ -329,7 +377,10 @@ int main(int argc, char* argv[])
             std::cout
                 << "Supermaximal repeat detection: "
                 << supermaximal_time_ms
-                << " ms\n";
+                << " ms\n"
+                << "Supermaximal repeats found: "
+                << supermaximal_repeat_count
+                << '\n';
         }
 
         std::cout

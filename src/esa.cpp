@@ -79,7 +79,6 @@ EnhancedSuffixArray build_esa(
     const auto bwt_end =
         Clock::now();
 
-    //Store performance metrics if requested
     if (metrics != nullptr) {
 
         metrics->suffix_array_time_ms =
@@ -102,6 +101,23 @@ EnhancedSuffixArray build_esa(
             std::chrono::duration<double, std::milli>(
                 bwt_end - bwt_start
             ).count();
+
+        //Approximate memory occupied by the main ESA data
+        metrics->estimated_memory_bytes =
+            esa.text.capacity() *
+                sizeof(char)
+            +
+            esa.suffix_array.capacity() *
+                sizeof(int)
+            +
+            esa.inverse_suffix_array.capacity() *
+                sizeof(int)
+            +
+            esa.lcp_array.capacity() *
+                sizeof(int)
+            +
+            esa.bwt.capacity() *
+                sizeof(char);
     }
 
     return esa;

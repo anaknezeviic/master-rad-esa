@@ -14,6 +14,7 @@ add_executable(master_rad_esa
     src/repeats.cpp
     src/fasta.cpp
     src/output.cpp
+    src/memory.cpp
 )
 
 target_include_directories(master_rad_esa

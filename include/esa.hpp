@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <cstddef>
 
 struct ESAConstructionMetrics
 {
@@ -10,6 +11,8 @@ struct ESAConstructionMetrics
     double inverse_suffix_array_time_ms = 0.0;
     double lcp_time_ms = 0.0;
     double bwt_time_ms = 0.0;
+
+    std::size_t estimated_memory_bytes = 0;
 };
 
 struct LCPInterval
