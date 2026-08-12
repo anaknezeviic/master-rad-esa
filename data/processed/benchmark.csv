@@ -1,0 +1,3 @@
+dataset,sequence_length,min_length,repeat_type,fasta_time_ms,suffix_array_time_ms,inverse_suffix_array_time_ms,lcp_time_ms,bwt_time_ms,esa_time_ms,repeat_detection_time_ms,total_time_ms,esa_memory_bytes,peak_memory_bytes,repeat_count
+test,17,3,maximal,0.4306,0.0612,0.0099,0.0096,0.0026,0.1119,0.5036,2.3392,266,5005312,2
+test,17,3,supermaximal,0.4306,0.0612,0.0099,0.0096,0.0026,0.1119,0.0781,2.3392,266,5005312,2

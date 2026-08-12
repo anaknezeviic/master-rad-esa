@@ -1,8 +1,9 @@
+#include "benchmark.hpp"
 #include "esa.hpp"
 #include "fasta.hpp"
+#include "memory.hpp"
 #include "output.hpp"
 #include "repeats.hpp"
-#include "memory.hpp"
 
 #include <chrono>
 #include <exception>
@@ -43,7 +44,8 @@ int main(int argc, char* argv[])
             << "Usage:\n"
             << "  master_rad_esa <fasta_file> "
             << "[--min-length N] "
-            << "[--type maximal|supermaximal|both]\n";
+            << "[--type maximal|supermaximal|both] "
+            << "[--benchmark]\n";
 
         return 1;
     }
@@ -65,7 +67,12 @@ int main(int argc, char* argv[])
         input_name +
         "_supermaximal.csv";
 
+    const std::string benchmark_output_path =
+        "data/processed/benchmark.csv";
+
     RepeatOptions options;
+
+    bool benchmark_mode = false;
 
     try {
         // Parse command-line arguments.
@@ -101,6 +108,10 @@ int main(int argc, char* argv[])
                 options.type =
                     parse_repeat_type(argv[++i]);
             }
+            else if (argument == "--benchmark") {
+
+                benchmark_mode = true;
+            }
             else {
                 throw std::runtime_error(
                     "Unknown argument: " + argument
@@ -134,7 +145,14 @@ int main(int argc, char* argv[])
         std::cout
             << "Minimum repeat length: "
             << options.min_length
-            << "\n\n";
+            << '\n';
+
+        if (benchmark_mode) {
+            std::cout
+                << "Mode: benchmark\n";
+        }
+
+        std::cout << '\n';
 
         // ESA construction.
         const auto esa_start = Clock::now();
@@ -165,7 +183,8 @@ int main(int argc, char* argv[])
             options.type == RepeatType::Maximal ||
             options.type == RepeatType::Both
         ) {
-            const auto maximal_start = Clock::now();
+            const auto maximal_start =
+                Clock::now();
 
             const std::vector<Repeat> maximal_repeats =
                 find_maximal_repeats(
@@ -173,53 +192,61 @@ int main(int argc, char* argv[])
                     options
                 );
 
-            maximal_repeat_count =
-                maximal_repeats.size();
-
-            const auto maximal_end = Clock::now();
+            const auto maximal_end =
+                Clock::now();
 
             maximal_time_ms =
                 std::chrono::duration<double, std::milli>(
                     maximal_end - maximal_start
                 ).count();
 
-            std::cout
-                << "Maximal repeats:\n";
+            maximal_repeat_count =
+                maximal_repeats.size();
 
-            if (maximal_repeats.empty()) {
-                std::cout << "None\n";
-            }
-            else {
-                for (const Repeat& repeat :
-                     maximal_repeats)
-                {
+            // Detailed output is skipped in benchmark mode.
+            if (!benchmark_mode) {
+
+                std::cout
+                    << "Maximal repeats:\n";
+
+                if (maximal_repeats.empty()) {
                     std::cout
-                        << repeat.sequence
-                        << " (length = "
-                        << repeat.length
-                        << ") positions: ";
-
-                    for (int position :
-                         repeat.positions)
-                    {
-                        std::cout
-                            << position
-                            << ' ';
-                    }
-
-                    std::cout << '\n';
+                        << "None\n";
                 }
+                else {
+                    for (
+                        const Repeat& repeat :
+                        maximal_repeats
+                    ) {
+                        std::cout
+                            << repeat.sequence
+                            << " (length = "
+                            << repeat.length
+                            << ") positions: ";
+
+                        for (
+                            int position :
+                            repeat.positions
+                        ) {
+                            std::cout
+                                << position
+                                << ' ';
+                        }
+
+                        std::cout << '\n';
+                    }
+                }
+
+                write_repeats_csv(
+                    maximal_output_path,
+                    maximal_repeats
+                );
+
+                std::cout
+                    << "\nMaximal repeats written to: "
+                    << maximal_output_path
+                    << "\n\n";
             }
-
-            write_repeats_csv(
-                maximal_output_path,
-                maximal_repeats
-            );
-
-            std::cout
-                << "\nMaximal repeats written to: "
-                << maximal_output_path
-                << "\n\n";
         }
 
         // Supermaximal repeats.
@@ -230,14 +257,12 @@ int main(int argc, char* argv[])
             const auto supermaximal_start =
                 Clock::now();
 
-            const std::vector<Repeat> supermaximal_repeats =
-                find_supermaximal_repeats(
-                    esa,
-                    options
-                );
-
-            supermaximal_repeat_count =
-                supermaximal_repeats.size();
+            const std::vector<Repeat>
+                supermaximal_repeats =
+                    find_supermaximal_repeats(
+                        esa,
+                        options
+                    );
 
             const auto supermaximal_end =
                 Clock::now();
@@ -248,47 +273,62 @@ int main(int argc, char* argv[])
                     supermaximal_start
                 ).count();
 
-            std::cout
-                << "Supermaximal repeats:\n";
+            supermaximal_repeat_count =
+                supermaximal_repeats.size();
 
-            if (supermaximal_repeats.empty()) {
-                std::cout << "None\n";
-            }
-            else {
-                for (const Repeat& repeat :
-                     supermaximal_repeats)
-                {
+            // Detailed output is skipped in benchmark mode.
+            if (!benchmark_mode) {
+
+                std::cout
+                    << "Supermaximal repeats:\n";
+
+                if (supermaximal_repeats.empty()) {
                     std::cout
-                        << repeat.sequence
-                        << " (length = "
-                        << repeat.length
-                        << ") positions: ";
-
-                    for (int position :
-                         repeat.positions)
-                    {
-                        std::cout
-                            << position
-                            << ' ';
-                    }
-
-                    std::cout << '\n';
+                        << "None\n";
                 }
+                else {
+                    for (
+                        const Repeat& repeat :
+                        supermaximal_repeats
+                    ) {
+                        std::cout
+                            << repeat.sequence
+                            << " (length = "
+                            << repeat.length
+                            << ") positions: ";
+
+                        for (
+                            int position :
+                            repeat.positions
+                        ) {
+                            std::cout
+                                << position
+                                << ' ';
+                        }
+
+                        std::cout << '\n';
+                    }
+                }
+
+                write_repeats_csv(
+                    supermaximal_output_path,
+                    supermaximal_repeats
+                );
+
+                std::cout
+                    << "\nSupermaximal repeats written to: "
+                    << supermaximal_output_path
+                    << '\n';
             }
-
-            write_repeats_csv(
-                supermaximal_output_path,
-                supermaximal_repeats
-            );
-
-            std::cout
-                << "\nSupermaximal repeats written to: "
-                << supermaximal_output_path
-                << '\n';
         }
 
+        // Peak process memory.
+        const std::size_t peak_memory_bytes =
+            get_peak_memory_bytes();
+
         // Total runtime.
-        const auto total_end = Clock::now();
+        const auto total_end =
+            Clock::now();
 
         const double total_time_ms =
             std::chrono::duration<double, std::milli>(
@@ -304,16 +344,135 @@ int main(int argc, char* argv[])
         const double esa_memory_mb =
             esa_memory_kb / 1024.0;
 
-        const std::size_t peak_memory_bytes = get_peak_memory_bytes();
-
         const double peak_memory_mb =
             static_cast<double>(
                 peak_memory_bytes
             ) / (1024.0 * 1024.0);
 
+        // Save benchmark results only in benchmark mode.
+        if (benchmark_mode) {
+
+            if (
+                options.type == RepeatType::Maximal ||
+                options.type == RepeatType::Both
+            ) {
+                BenchmarkResult benchmark;
+
+                benchmark.dataset =
+                    input_name;
+
+                benchmark.sequence_length =
+                    record.sequence.size();
+
+                benchmark.min_length =
+                    options.min_length;
+
+                benchmark.repeat_type =
+                    "maximal";
+
+                benchmark.fasta_time_ms =
+                    fasta_time_ms;
+
+                benchmark.suffix_array_time_ms =
+                    esa_metrics.suffix_array_time_ms;
+
+                benchmark.inverse_suffix_array_time_ms =
+                    esa_metrics.inverse_suffix_array_time_ms;
+
+                benchmark.lcp_time_ms =
+                    esa_metrics.lcp_time_ms;
+
+                benchmark.bwt_time_ms =
+                    esa_metrics.bwt_time_ms;
+
+                benchmark.esa_time_ms =
+                    esa_time_ms;
+
+                benchmark.repeat_detection_time_ms =
+                    maximal_time_ms;
+
+                benchmark.total_time_ms =
+                    total_time_ms;
+
+                benchmark.esa_memory_bytes =
+                    esa_metrics.estimated_memory_bytes;
+
+                benchmark.peak_memory_bytes =
+                    peak_memory_bytes;
+
+                benchmark.repeat_count =
+                    maximal_repeat_count;
+
+                append_benchmark_csv(
+                    benchmark_output_path,
+                    benchmark
+                );
+            }
+
+            if (
+                options.type ==
+                    RepeatType::Supermaximal ||
+                options.type ==
+                    RepeatType::Both
+            ) {
+                BenchmarkResult benchmark;
+
+                benchmark.dataset =
+                    input_name;
+
+                benchmark.sequence_length =
+                    record.sequence.size();
+
+                benchmark.min_length =
+                    options.min_length;
+
+                benchmark.repeat_type =
+                    "supermaximal";
+
+                benchmark.fasta_time_ms =
+                    fasta_time_ms;
+
+                benchmark.suffix_array_time_ms =
+                    esa_metrics.suffix_array_time_ms;
+
+                benchmark.inverse_suffix_array_time_ms =
+                    esa_metrics.inverse_suffix_array_time_ms;
+
+                benchmark.lcp_time_ms =
+                    esa_metrics.lcp_time_ms;
+
+                benchmark.bwt_time_ms =
+                    esa_metrics.bwt_time_ms;
+
+                benchmark.esa_time_ms =
+                    esa_time_ms;
+
+                benchmark.repeat_detection_time_ms =
+                    supermaximal_time_ms;
+
+                benchmark.total_time_ms =
+                    total_time_ms;
+
+                benchmark.esa_memory_bytes =
+                    esa_metrics.estimated_memory_bytes;
+
+                benchmark.peak_memory_bytes =
+                    peak_memory_bytes;
+
+                benchmark.repeat_count =
+                    supermaximal_repeat_count;
+
+                append_benchmark_csv(
+                    benchmark_output_path,
+                    benchmark
+                );
+            }
+        }
+
         // Performance summary.
         std::cout
             << "\nPerformance:\n"
+
             << "FASTA parsing: "
             << fasta_time_ms
             << " ms\n"
@@ -365,19 +524,23 @@ int main(int argc, char* argv[])
                 << "Maximal repeat detection: "
                 << maximal_time_ms
                 << " ms\n"
+
                 << "Maximal repeats found: "
                 << maximal_repeat_count
                 << '\n';
         }
 
         if (
-            options.type == RepeatType::Supermaximal ||
-            options.type == RepeatType::Both
+            options.type ==
+                RepeatType::Supermaximal ||
+            options.type ==
+                RepeatType::Both
         ) {
             std::cout
                 << "Supermaximal repeat detection: "
                 << supermaximal_time_ms
                 << " ms\n"
+
                 << "Supermaximal repeats found: "
                 << supermaximal_repeat_count
                 << '\n';
@@ -387,6 +550,13 @@ int main(int argc, char* argv[])
             << "Total runtime: "
             << total_time_ms
             << " ms\n";
+
+        if (benchmark_mode) {
+            std::cout
+                << "Benchmark written to: "
+                << benchmark_output_path
+                << '\n';
+        }
     }
     catch (const std::exception& error) {
 
