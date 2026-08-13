@@ -361,6 +361,9 @@ int main(int argc, char* argv[])
                 benchmark.dataset =
                     input_name;
 
+                benchmark.implementation = 
+                    "optimized_sa";
+
                 benchmark.sequence_length =
                     record.sequence.size();
 
@@ -419,6 +422,9 @@ int main(int argc, char* argv[])
 
                 benchmark.dataset =
                     input_name;
+
+                benchmark.implementation =
+                    "optimized_sa";
 
                 benchmark.sequence_length =
                     record.sequence.size();

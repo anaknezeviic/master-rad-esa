@@ -7,6 +7,8 @@
 struct BenchmarkResult
 {
     std::string dataset;
+    std::string implementation;
+    
     std::size_t sequence_length = 0;
     int min_length = 1;
     std::string repeat_type;

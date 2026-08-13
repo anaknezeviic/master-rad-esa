@@ -38,6 +38,7 @@ void append_benchmark_csv(
     if (!file_exists) {
         output
             << "dataset,"
+            << "implementation,"
             << "sequence_length,"
             << "min_length,"
             << "repeat_type,"
@@ -56,6 +57,7 @@ void append_benchmark_csv(
 
     output
         << result.dataset << ','
+        << result.implementation << ','
         << result.sequence_length << ','
         << result.min_length << ','
         << result.repeat_type << ','
