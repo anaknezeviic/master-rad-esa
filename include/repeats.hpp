@@ -46,6 +46,12 @@ std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
     const RepeatOptions& options
 );
 
+std::vector<Repeat> find_maximal_repeats_baseline(
+    const EnhancedSuffixArray& esa,
+    const RepeatOptions& options
+);
+
+// Optimized direct maximal-repeat detection.
 std::vector<Repeat> find_maximal_repeats(
     const EnhancedSuffixArray& esa,
     const RepeatOptions& options

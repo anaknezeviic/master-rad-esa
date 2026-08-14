@@ -1,5 +1,6 @@
 #include "repeats.hpp"
 
+#include <bitset>
 #include <vector>
 #include <algorithm>
 #include <string>
@@ -245,7 +246,7 @@ std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
     return pairs;
 }
 
-std::vector<Repeat> find_maximal_repeats(
+std::vector<Repeat> find_maximal_repeats_baseline(
     const EnhancedSuffixArray& esa,
     const RepeatOptions& options
 )
@@ -256,16 +257,12 @@ std::vector<Repeat> find_maximal_repeats(
             options
         );
 
-    //A substring is a maximal repeat if there exists
-    //at least one maximal repeated pair for it.
     std::set<std::string> maximal_sequences;
 
     for (const MaximalRepeatedPair& pair : pairs) {
         maximal_sequences.insert(pair.sequence);
     }
 
-    //LCP intervals contain all occurrences of their
-    //corresponding repeated substring.
     const std::vector<LCPIntervalNode> nodes =
         build_lcp_interval_tree(
             esa.lcp_array
@@ -289,8 +286,6 @@ std::vector<Repeat> find_maximal_repeats(
                 node.lcp_value
             );
 
-        //If no maximal repeated pair exists for this
-        //sequence, it is not a maximal repeat
         if (
             maximal_sequences.find(sequence) ==
             maximal_sequences.end()
@@ -303,8 +298,6 @@ std::vector<Repeat> find_maximal_repeats(
         repeat.sequence = sequence;
         repeat.length = node.lcp_value;
 
-        //Every suffix-array position in this LCP interval
-        //corresponds to one occurrence of the repeat
         for (int k = node.left;
              k <= node.right;
              ++k)
@@ -320,6 +313,209 @@ std::vector<Repeat> find_maximal_repeats(
         );
 
         repeats.push_back(repeat);
+    }
+
+    return repeats;
+}
+
+std::vector<Repeat> find_maximal_repeats(
+    const EnhancedSuffixArray& esa,
+    const RepeatOptions& options
+)
+{
+    using LeftContextMask = std::bitset<256>;
+
+    const std::vector<LCPIntervalNode> nodes =
+        build_lcp_interval_tree(
+            esa.lcp_array
+        );
+
+    std::vector<Repeat> repeats;
+
+    if (nodes.empty()) {
+        return repeats;
+    }
+
+    std::vector<LeftContextMask>
+        node_left_contexts(nodes.size());
+
+    for (
+        std::size_t node_index = 0;
+        node_index < nodes.size();
+        ++node_index
+    ) {
+        const LCPIntervalNode& node =
+            nodes[node_index];
+
+        LeftContextMask accumulated_contexts;
+        LeftContextMask complete_node_contexts;
+
+        bool is_maximal_repeat = false;
+
+        std::vector<int> sorted_children =
+            node.children;
+
+        std::sort(
+            sorted_children.begin(),
+            sorted_children.end(),
+            [&](int first, int second)
+            {
+                return
+                    nodes[first].left <
+                    nodes[second].left;
+            }
+        );
+
+        int current = node.left;
+
+        for (int child_index : sorted_children) {
+
+            const LCPIntervalNode& child =
+                nodes[child_index];
+
+
+            while (current < child.left) {
+
+                LeftContextMask group_contexts;
+
+                const unsigned char left_character =
+                    static_cast<unsigned char>(
+                        esa.bwt[current]
+                    );
+
+                group_contexts.set(
+                    left_character
+                );
+
+                if (
+                    accumulated_contexts.any() &&
+                    (
+                        accumulated_contexts |
+                        group_contexts
+                    ).count() >= 2
+                ) {
+                    is_maximal_repeat = true;
+                }
+
+                accumulated_contexts |=
+                    group_contexts;
+
+                complete_node_contexts |=
+                    group_contexts;
+
+                ++current;
+            }
+
+            const LeftContextMask& group_contexts =
+                node_left_contexts[
+                    child_index
+                ];
+
+            if (
+                accumulated_contexts.any() &&
+                (
+                    accumulated_contexts |
+                    group_contexts
+                ).count() >= 2
+            ) {
+                is_maximal_repeat = true;
+            }
+
+            accumulated_contexts |=
+                group_contexts;
+
+            complete_node_contexts |=
+                group_contexts;
+
+            current =
+                child.right + 1;
+        }
+
+        while (current <= node.right) {
+
+            LeftContextMask group_contexts;
+
+            const unsigned char left_character =
+                static_cast<unsigned char>(
+                    esa.bwt[current]
+                );
+
+            group_contexts.set(
+                left_character
+            );
+
+            if (
+                accumulated_contexts.any() &&
+                (
+                    accumulated_contexts |
+                    group_contexts
+                ).count() >= 2
+            ) {
+                is_maximal_repeat = true;
+            }
+
+            accumulated_contexts |=
+                group_contexts;
+
+            complete_node_contexts |=
+                group_contexts;
+
+            ++current;
+        }
+
+        node_left_contexts[node_index] =
+            complete_node_contexts;
+
+        if (node.lcp_value == 0) {
+            continue;
+        }
+
+        if (
+            node.lcp_value <
+            options.min_length
+        ) {
+            continue;
+        }
+
+        if (!is_maximal_repeat) {
+            continue;
+        }
+
+        Repeat repeat;
+
+        repeat.length =
+            node.lcp_value;
+
+        repeat.sequence =
+            esa.text.substr(
+                esa.suffix_array[node.left],
+                node.lcp_value
+            );
+
+        repeat.positions.reserve(
+            node.right -
+            node.left +
+            1
+        );
+
+        for (
+            int k = node.left;
+            k <= node.right;
+            ++k
+        ) {
+            repeat.positions.push_back(
+                esa.suffix_array[k]
+            );
+        }
+
+        std::sort(
+            repeat.positions.begin(),
+            repeat.positions.end()
+        );
+
+        repeats.push_back(
+            std::move(repeat)
+        );
     }
 
     return repeats;

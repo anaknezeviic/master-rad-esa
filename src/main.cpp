@@ -362,7 +362,7 @@ int main(int argc, char* argv[])
                     input_name;
 
                 benchmark.implementation = 
-                    "optimized_sa";
+                    "optimized_sa_maximal";
 
                 benchmark.sequence_length =
                     record.sequence.size();
