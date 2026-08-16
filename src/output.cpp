@@ -3,11 +3,8 @@
 #include <fstream>
 #include <stdexcept>
 
-void write_repeats_csv(
-    const std::string& file_path,
-    const std::vector<Repeat>& repeats
-)
-{
+void write_repeats_csv(const std::string& file_path, const std::vector<Repeat>& repeats) {
+    
     std::ofstream output(file_path);
 
     if (!output) {
@@ -16,8 +13,7 @@ void write_repeats_csv(
         );
     }
 
-    output
-        << "sequence,length,occurrences,positions\n";
+    output << "sequence,length,occurrences,positions\n";
 
     for (const Repeat& repeat : repeats) {
 
@@ -29,14 +25,10 @@ void write_repeats_csv(
             << repeat.positions.size()
             << ",\"";
 
-        for (std::size_t i = 0;
-             i < repeat.positions.size();
-             ++i)
-        {
+        for (std::size_t i = 0; i < repeat.positions.size(); ++i) {
             if (i > 0) {
                 output << ' ';
             }
-
             output << repeat.positions[i];
         }
 

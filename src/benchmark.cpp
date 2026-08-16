@@ -4,29 +4,16 @@
 #include <fstream>
 #include <stdexcept>
 
-void append_benchmark_csv(
-    const std::string& file_path,
-    const BenchmarkResult& result
-)
-{
+void append_benchmark_csv(const std::string& file_path,const BenchmarkResult& result) {
     const std::filesystem::path path(file_path);
 
-    if (
-        path.has_parent_path() &&
-        !path.parent_path().empty()
-    ) {
-        std::filesystem::create_directories(
-            path.parent_path()
-        );
+    if (path.has_parent_path() && !path.parent_path().empty()) {
+        std::filesystem::create_directories(path.parent_path());
     }
 
-    const bool file_exists =
-        std::filesystem::exists(path);
+    const bool file_exists = std::filesystem::exists(path);
 
-    std::ofstream output(
-        file_path,
-        std::ios::app
-    );
+    std::ofstream output(file_path, std::ios::app);
 
     if (!output) {
         throw std::runtime_error(

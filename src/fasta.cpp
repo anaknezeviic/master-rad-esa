@@ -6,8 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-FastaRecord read_fasta(const std::string& file_path)
-{
+FastaRecord read_fasta(const std::string& file_path) {
     std::ifstream input(file_path);
 
     if (!input) {
@@ -22,13 +21,11 @@ FastaRecord read_fasta(const std::string& file_path)
     bool header_found = false;
 
     while (std::getline(input, line)) {
-
         if (line.empty()) {
             continue;
         }
 
         if (line[0] == '>') {
-
             if (header_found) {
                 throw std::runtime_error(
                     "FASTA file contains more than one record."
@@ -49,26 +46,13 @@ FastaRecord read_fasta(const std::string& file_path)
 
         for (char character : line) {
 
-            if (std::isspace(
-                    static_cast<unsigned char>(character)
-                )) {
+            if (std::isspace(static_cast<unsigned char>(character))) {
                 continue;
             }
 
-            const char nucleotide =
-                static_cast<char>(
-                    std::toupper(
-                        static_cast<unsigned char>(character)
-                    )
-                );
+            const char nucleotide = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
 
-            if (
-                nucleotide != 'A' &&
-                nucleotide != 'C' &&
-                nucleotide != 'G' &&
-                nucleotide != 'T' &&
-                nucleotide != 'N'
-            ) {
+            if ( nucleotide != 'A' && nucleotide != 'C' && nucleotide != 'G' && nucleotide != 'T' && nucleotide != 'N') {
                 throw std::runtime_error(
                     std::string(
                         "Invalid nucleotide in FASTA file: "

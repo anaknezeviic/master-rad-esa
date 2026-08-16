@@ -13,8 +13,13 @@
 #include <string>
 #include <vector>
 
-RepeatType parse_repeat_type(const std::string& value)
-{
+enum class ImplementationType {
+    Baseline,
+    OptimizedSA,
+    Final
+};
+
+RepeatType parse_repeat_type(const std::string& value) {
     if (value == "maximal") {
         return RepeatType::Maximal;
     }
@@ -33,10 +38,28 @@ RepeatType parse_repeat_type(const std::string& value)
     );
 }
 
+ImplementationType parse_implementation(const std::string& value) {
+    if (value == "baseline") {
+        return ImplementationType::Baseline;
+    }
+
+    if (value == "optimized-sa") {
+        return ImplementationType::OptimizedSA;
+    }
+
+    if (value == "final") {
+        return ImplementationType::Final;
+    }
+
+    throw std::runtime_error(
+        "Invalid implementation: " + value +
+        ". Expected baseline, optimized-sa, or final."
+    );
+}
+
 using Clock = std::chrono::steady_clock;
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     const auto total_start = Clock::now();
 
     if (argc < 2) {
@@ -45,92 +68,121 @@ int main(int argc, char* argv[])
             << "  master_rad_esa <fasta_file> "
             << "[--min-length N] "
             << "[--type maximal|supermaximal|both] "
-            << "[--benchmark]\n";
+            << "[--benchmark] "
+            << "[--implementation baseline|optimized-sa|final]\n";
 
         return 1;
     }
 
     const std::string file_path = argv[1];
-
     const std::filesystem::path input_path(file_path);
+    const std::string input_name = input_path.stem().string();
+    std::string repeat_output_directory;
 
-    const std::string input_name =
-        input_path.stem().string();
+    const std::string input_directory = input_path.parent_path().filename().string();
+
+    if (input_directory == "real") {
+        repeat_output_directory = "data/processed/repeats/real/";
+    }
+    else if (input_directory == "tests") {
+        repeat_output_directory = "data/processed/repeats/tests/";
+    }
+    else {
+        repeat_output_directory = "data/processed/repeats/synthetic/";
+    }
 
     const std::string maximal_output_path =
-        "data/processed/" +
+        repeat_output_directory +
         input_name +
         "_maximal.csv";
 
     const std::string supermaximal_output_path =
-        "data/processed/" +
+        repeat_output_directory +
         input_name +
         "_supermaximal.csv";
 
-    const std::string benchmark_output_path =
-        "data/processed/benchmark.csv";
+    std::string benchmark_output_path;
+
+    if (input_directory == "real") {
+        benchmark_output_path =
+            "data/processed/benchmarks/real_datasets.csv";
+    }
+    else {
+        benchmark_output_path =
+            "data/processed/benchmarks/synthetic_scalability.csv";
+    }
 
     RepeatOptions options;
 
     bool benchmark_mode = false;
 
-    try {
-        // Parse command-line arguments.
-        for (int i = 2; i < argc; ++i) {
+    ImplementationType implementation = ImplementationType::Final;
 
+    try {
+        for (int i = 2; i < argc; ++i) {
             const std::string argument = argv[i];
 
             if (argument == "--min-length") {
-
                 if (i + 1 >= argc) {
                     throw std::runtime_error(
                         "Missing value after --min-length."
                     );
                 }
 
-                options.min_length =
-                    std::stoi(argv[++i]);
+                options.min_length = std::stoi(argv[++i]);
 
                 if (options.min_length < 1) {
                     throw std::runtime_error(
                         "--min-length must be at least 1."
                     );
                 }
-            }
-            else if (argument == "--type") {
-
+            } else if (argument == "--type") {
                 if (i + 1 >= argc) {
                     throw std::runtime_error(
                         "Missing value after --type."
                     );
                 }
 
-                options.type =
-                    parse_repeat_type(argv[++i]);
-            }
-            else if (argument == "--benchmark") {
-
+                options.type = parse_repeat_type(argv[++i]);
+            } else if (argument == "--benchmark") {
                 benchmark_mode = true;
-            }
-            else {
+            } else if (argument == "--implementation") {
+
+                if (i + 1 >= argc) {
+                    throw std::runtime_error(
+                        "Missing value after --implementation."
+                    );
+                }
+
+                implementation = parse_implementation(argv[++i]);
+            } else {
                 throw std::runtime_error(
                     "Unknown argument: " + argument
                 );
             }
         }
 
-        // FASTA parsing.
+        std::string implementation_name;
+
+        switch (implementation) {
+            case ImplementationType::Baseline:
+                implementation_name = "baseline";
+                break;
+            case ImplementationType::OptimizedSA:
+                implementation_name = "optimized_sa";
+                break;
+            case ImplementationType::Final:
+                implementation_name = "final";
+                break;
+        }
+
         const auto fasta_start = Clock::now();
 
-        const FastaRecord record =
-            read_fasta(file_path);
+        const FastaRecord record = read_fasta(file_path);
 
         const auto fasta_end = Clock::now();
 
-        const double fasta_time_ms =
-            std::chrono::duration<double, std::milli>(
-                fasta_end - fasta_start
-            ).count();
+        const double fasta_time_ms = std::chrono::duration<double, std::milli>(fasta_end - fasta_start).count();
 
         std::cout
             << "FASTA header: "
@@ -147,6 +199,11 @@ int main(int argc, char* argv[])
             << options.min_length
             << '\n';
 
+        std::cout
+            << "Implementation: "
+            << implementation_name
+            << '\n';
+
         if (benchmark_mode) {
             std::cout
                 << "Mode: benchmark\n";
@@ -154,23 +211,21 @@ int main(int argc, char* argv[])
 
         std::cout << '\n';
 
-        // ESA construction.
+        SuffixArrayImplementation suffix_array_implementation = SuffixArrayImplementation::Optimized;
+
+        if (implementation == ImplementationType::Baseline) {
+            suffix_array_implementation = SuffixArrayImplementation::Baseline;
+        }
+
         const auto esa_start = Clock::now();
 
         ESAConstructionMetrics esa_metrics;
 
-        const EnhancedSuffixArray esa =
-            build_esa(
-                record.sequence,
-                &esa_metrics
-            );
+        const EnhancedSuffixArray esa = build_esa(record.sequence, &esa_metrics, suffix_array_implementation);
 
         const auto esa_end = Clock::now();
 
-        const double esa_time_ms =
-            std::chrono::duration<double, std::milli>(
-                esa_end - esa_start
-            ).count();
+        const double esa_time_ms = std::chrono::duration<double, std::milli>(esa_end - esa_start).count();
 
         double maximal_time_ms = 0.0;
         double supermaximal_time_ms = 0.0;
@@ -178,69 +233,44 @@ int main(int argc, char* argv[])
         std::size_t maximal_repeat_count = 0;
         std::size_t supermaximal_repeat_count = 0;
 
-        // Maximal repeats.
-        if (
-            options.type == RepeatType::Maximal ||
-            options.type == RepeatType::Both
-        ) {
-            const auto maximal_start =
-                Clock::now();
+        if (options.type == RepeatType::Maximal || options.type == RepeatType::Both) {
+            const auto maximal_start = Clock::now();
 
-            const std::vector<Repeat> maximal_repeats =
-                find_maximal_repeats(
-                    esa,
-                    options
-                );
+            std::vector<Repeat> maximal_repeats;
 
-            const auto maximal_end =
-                Clock::now();
+            if (implementation == ImplementationType::Baseline || implementation == ImplementationType::OptimizedSA) {
+                maximal_repeats = find_maximal_repeats_baseline(esa, options);
+            } else {
+                maximal_repeats = find_maximal_repeats(esa, options);
+            }
+            const auto maximal_end = Clock::now();
 
-            maximal_time_ms =
-                std::chrono::duration<double, std::milli>(
-                    maximal_end - maximal_start
-                ).count();
+            maximal_time_ms = std::chrono::duration<double, std::milli>(maximal_end - maximal_start).count();
 
-            maximal_repeat_count =
-                maximal_repeats.size();
+            maximal_repeat_count = maximal_repeats.size();
 
-            // Detailed output is skipped in benchmark mode.
             if (!benchmark_mode) {
-
-                std::cout
-                    << "Maximal repeats:\n";
+                std::cout << "Maximal repeats:\n";
 
                 if (maximal_repeats.empty()) {
-                    std::cout
-                        << "None\n";
-                }
-                else {
-                    for (
-                        const Repeat& repeat :
-                        maximal_repeats
-                    ) {
+                    std::cout << "None\n";
+                } else {
+                    for (const Repeat& repeat : maximal_repeats) {
                         std::cout
                             << repeat.sequence
                             << " (length = "
                             << repeat.length
                             << ") positions: ";
 
-                        for (
-                            int position :
-                            repeat.positions
-                        ) {
-                            std::cout
-                                << position
-                                << ' ';
+                        for (int position : repeat.positions) {
+                            std::cout << position << ' ';
                         }
 
                         std::cout << '\n';
                     }
                 }
 
-                write_repeats_csv(
-                    maximal_output_path,
-                    maximal_repeats
-                );
+                write_repeats_csv(maximal_output_path, maximal_repeats);
 
                 std::cout
                     << "\nMaximal repeats written to: "
@@ -249,58 +279,31 @@ int main(int argc, char* argv[])
             }
         }
 
-        // Supermaximal repeats.
-        if (
-            options.type == RepeatType::Supermaximal ||
-            options.type == RepeatType::Both
-        ) {
-            const auto supermaximal_start =
-                Clock::now();
+        if (options.type == RepeatType::Supermaximal || options.type == RepeatType::Both) {
+            const auto supermaximal_start = Clock::now();
 
-            const std::vector<Repeat>
-                supermaximal_repeats =
-                    find_supermaximal_repeats(
-                        esa,
-                        options
-                    );
+            const std::vector<Repeat> supermaximal_repeats = find_supermaximal_repeats(esa, options);
 
-            const auto supermaximal_end =
-                Clock::now();
+            const auto supermaximal_end = Clock::now();
 
-            supermaximal_time_ms =
-                std::chrono::duration<double, std::milli>(
-                    supermaximal_end -
-                    supermaximal_start
-                ).count();
+            supermaximal_time_ms = std::chrono::duration<double, std::milli>(supermaximal_end - supermaximal_start).count();
 
-            supermaximal_repeat_count =
-                supermaximal_repeats.size();
+            supermaximal_repeat_count = supermaximal_repeats.size();
 
-            // Detailed output is skipped in benchmark mode.
             if (!benchmark_mode) {
-
-                std::cout
-                    << "Supermaximal repeats:\n";
+                std::cout << "Supermaximal repeats:\n";
 
                 if (supermaximal_repeats.empty()) {
-                    std::cout
-                        << "None\n";
-                }
-                else {
-                    for (
-                        const Repeat& repeat :
-                        supermaximal_repeats
-                    ) {
+                    std::cout << "None\n";
+                } else {
+                    for (const Repeat& repeat :supermaximal_repeats) {
                         std::cout
                             << repeat.sequence
                             << " (length = "
                             << repeat.length
                             << ") positions: ";
 
-                        for (
-                            int position :
-                            repeat.positions
-                        ) {
+                        for (int position : repeat.positions) {
                             std::cout
                                 << position
                                 << ' ';
@@ -310,10 +313,7 @@ int main(int argc, char* argv[])
                     }
                 }
 
-                write_repeats_csv(
-                    supermaximal_output_path,
-                    supermaximal_repeats
-                );
+                write_repeats_csv(supermaximal_output_path, supermaximal_repeats);
 
                 std::cout
                     << "\nSupermaximal repeats written to: "
@@ -322,160 +322,66 @@ int main(int argc, char* argv[])
             }
         }
 
-        // Peak process memory.
-        const std::size_t peak_memory_bytes =
-            get_peak_memory_bytes();
+        const std::size_t peak_memory_bytes = get_peak_memory_bytes();
 
-        // Total runtime.
-        const auto total_end =
-            Clock::now();
+        const auto total_end = Clock::now();
 
-        const double total_time_ms =
-            std::chrono::duration<double, std::milli>(
-                total_end - total_start
-            ).count();
+        const double total_time_ms = std::chrono::duration<double, std::milli>(total_end - total_start).count();
 
-        // ESA memory estimate.
-        const double esa_memory_kb =
-            static_cast<double>(
-                esa_metrics.estimated_memory_bytes
-            ) / 1024.0;
+        const double esa_memory_kb = static_cast<double>(esa_metrics.estimated_memory_bytes) / 1024.0;
 
-        const double esa_memory_mb =
-            esa_memory_kb / 1024.0;
+        const double esa_memory_mb = esa_memory_kb / 1024.0;
 
-        const double peak_memory_mb =
-            static_cast<double>(
-                peak_memory_bytes
-            ) / (1024.0 * 1024.0);
+        const double peak_memory_mb = static_cast<double>(peak_memory_bytes) / (1024.0 * 1024.0);
 
-        // Save benchmark results only in benchmark mode.
         if (benchmark_mode) {
-
-            if (
-                options.type == RepeatType::Maximal ||
-                options.type == RepeatType::Both
-            ) {
+            if (options.type == RepeatType::Maximal || options.type == RepeatType::Both) {
                 BenchmarkResult benchmark;
 
-                benchmark.dataset =
-                    input_name;
+                benchmark.dataset = input_name;
+                benchmark.implementation = implementation_name;
+                benchmark.sequence_length = record.sequence.size();
+                benchmark.min_length = options.min_length;
+                benchmark.repeat_type = "maximal";
+                benchmark.fasta_time_ms = fasta_time_ms;
+                benchmark.suffix_array_time_ms = esa_metrics.suffix_array_time_ms;
+                benchmark.inverse_suffix_array_time_ms = esa_metrics.inverse_suffix_array_time_ms;
+                benchmark.lcp_time_ms = esa_metrics.lcp_time_ms;
+                benchmark.bwt_time_ms = esa_metrics.bwt_time_ms;
+                benchmark.esa_time_ms = esa_time_ms;
+                benchmark.repeat_detection_time_ms = maximal_time_ms;
+                benchmark.total_time_ms = total_time_ms;
+                benchmark.esa_memory_bytes = esa_metrics.estimated_memory_bytes;
+                benchmark.peak_memory_bytes = peak_memory_bytes;
+                benchmark.repeat_count = maximal_repeat_count;
 
-                benchmark.implementation = 
-                    "optimized_sa_maximal";
-
-                benchmark.sequence_length =
-                    record.sequence.size();
-
-                benchmark.min_length =
-                    options.min_length;
-
-                benchmark.repeat_type =
-                    "maximal";
-
-                benchmark.fasta_time_ms =
-                    fasta_time_ms;
-
-                benchmark.suffix_array_time_ms =
-                    esa_metrics.suffix_array_time_ms;
-
-                benchmark.inverse_suffix_array_time_ms =
-                    esa_metrics.inverse_suffix_array_time_ms;
-
-                benchmark.lcp_time_ms =
-                    esa_metrics.lcp_time_ms;
-
-                benchmark.bwt_time_ms =
-                    esa_metrics.bwt_time_ms;
-
-                benchmark.esa_time_ms =
-                    esa_time_ms;
-
-                benchmark.repeat_detection_time_ms =
-                    maximal_time_ms;
-
-                benchmark.total_time_ms =
-                    total_time_ms;
-
-                benchmark.esa_memory_bytes =
-                    esa_metrics.estimated_memory_bytes;
-
-                benchmark.peak_memory_bytes =
-                    peak_memory_bytes;
-
-                benchmark.repeat_count =
-                    maximal_repeat_count;
-
-                append_benchmark_csv(
-                    benchmark_output_path,
-                    benchmark
-                );
+                append_benchmark_csv(benchmark_output_path, benchmark);
             }
 
-            if (
-                options.type ==
-                    RepeatType::Supermaximal ||
-                options.type ==
-                    RepeatType::Both
-            ) {
+            if (options.type == RepeatType::Supermaximal || options.type == RepeatType::Both) {
                 BenchmarkResult benchmark;
 
-                benchmark.dataset =
-                    input_name;
+                benchmark.dataset = input_name;
+                benchmark.implementation = implementation_name;
+                benchmark.sequence_length = record.sequence.size();
+                benchmark.min_length = options.min_length;
+                benchmark.repeat_type = "supermaximal";
+                benchmark.fasta_time_ms = fasta_time_ms;
+                benchmark.suffix_array_time_ms = esa_metrics.suffix_array_time_ms;
+                benchmark.inverse_suffix_array_time_ms = esa_metrics.inverse_suffix_array_time_ms;
+                benchmark.lcp_time_ms = esa_metrics.lcp_time_ms;
+                benchmark.bwt_time_ms = esa_metrics.bwt_time_ms;
+                benchmark.esa_time_ms = esa_time_ms;
+                benchmark.repeat_detection_time_ms = supermaximal_time_ms;
+                benchmark.total_time_ms = total_time_ms;
+                benchmark.esa_memory_bytes = esa_metrics.estimated_memory_bytes;
+                benchmark.peak_memory_bytes = peak_memory_bytes;
+                benchmark.repeat_count = supermaximal_repeat_count;
 
-                benchmark.implementation =
-                    "optimized_sa";
-
-                benchmark.sequence_length =
-                    record.sequence.size();
-
-                benchmark.min_length =
-                    options.min_length;
-
-                benchmark.repeat_type =
-                    "supermaximal";
-
-                benchmark.fasta_time_ms =
-                    fasta_time_ms;
-
-                benchmark.suffix_array_time_ms =
-                    esa_metrics.suffix_array_time_ms;
-
-                benchmark.inverse_suffix_array_time_ms =
-                    esa_metrics.inverse_suffix_array_time_ms;
-
-                benchmark.lcp_time_ms =
-                    esa_metrics.lcp_time_ms;
-
-                benchmark.bwt_time_ms =
-                    esa_metrics.bwt_time_ms;
-
-                benchmark.esa_time_ms =
-                    esa_time_ms;
-
-                benchmark.repeat_detection_time_ms =
-                    supermaximal_time_ms;
-
-                benchmark.total_time_ms =
-                    total_time_ms;
-
-                benchmark.esa_memory_bytes =
-                    esa_metrics.estimated_memory_bytes;
-
-                benchmark.peak_memory_bytes =
-                    peak_memory_bytes;
-
-                benchmark.repeat_count =
-                    supermaximal_repeat_count;
-
-                append_benchmark_csv(
-                    benchmark_output_path,
-                    benchmark
-                );
+                append_benchmark_csv(benchmark_output_path, benchmark);
             }
         }
 
-        // Performance summary.
         std::cout
             << "\nPerformance:\n"
 
@@ -503,15 +409,13 @@ int main(int argc, char* argv[])
             << esa_metrics.bwt_time_ms
             << " ms\n";
 
-        std::cout
-            << "ESA estimated memory: ";
+        std::cout << "ESA estimated memory: ";
 
         if (esa_memory_mb >= 1.0) {
             std::cout
                 << esa_memory_mb
                 << " MB\n";
-        }
-        else {
+        } else {
             std::cout
                 << esa_memory_kb
                 << " KB\n";
@@ -522,10 +426,7 @@ int main(int argc, char* argv[])
             << peak_memory_mb
             << " MB\n";
 
-        if (
-            options.type == RepeatType::Maximal ||
-            options.type == RepeatType::Both
-        ) {
+        if (options.type == RepeatType::Maximal || options.type == RepeatType::Both) {
             std::cout
                 << "Maximal repeat detection: "
                 << maximal_time_ms
@@ -536,12 +437,7 @@ int main(int argc, char* argv[])
                 << '\n';
         }
 
-        if (
-            options.type ==
-                RepeatType::Supermaximal ||
-            options.type ==
-                RepeatType::Both
-        ) {
+        if (options.type == RepeatType::Supermaximal || options.type == RepeatType::Both) {
             std::cout
                 << "Supermaximal repeat detection: "
                 << supermaximal_time_ms
@@ -563,8 +459,7 @@ int main(int argc, char* argv[])
                 << benchmark_output_path
                 << '\n';
         }
-    }
-    catch (const std::exception& error) {
+    } catch (const std::exception& error) {
 
         std::cerr
             << "Error: "

@@ -42,9 +42,17 @@ struct EnhancedSuffixArray
     std::string bwt;
 };
 
+enum class SuffixArrayImplementation
+{
+    Baseline,
+    Optimized
+};
+
 EnhancedSuffixArray build_esa(
     const std::string& text,
-    ESAConstructionMetrics* metrics = nullptr
+    ESAConstructionMetrics* metrics = nullptr,
+    SuffixArrayImplementation implementation =
+        SuffixArrayImplementation::Optimized
 );
 
 std::vector<LCPInterval> build_lcp_intervals(

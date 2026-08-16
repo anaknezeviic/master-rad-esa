@@ -1,0 +1,4 @@
+sequence,length,occurrences,positions
+ACGT,4,2,"0 4"
+AC,2,3,"0 4 12"
+TAC,3,2,"3 11"
