@@ -1,7 +1,6 @@
 # Enhanced Suffix Arrays for Exact Repeats in DNA Sequences
 
-Implementation developed as part of a Master's thesis on the application of
-Enhanced Suffix Arrays (ESA) for detecting exact repeats in DNA sequences.
+Implementation developed as part of a Master's thesis on the application of Enhanced Suffix Arrays (ESA) for detecting exact repeats in DNA sequences.
 
 The project focuses on the detection of:
 
@@ -14,17 +13,21 @@ The implementation is primarily based on the concepts described in:
 > "Replacing suffix trees with enhanced suffix arrays",  
 > Journal of Discrete Algorithms, 2004.
 
+The final suffix-array construction additionally uses the SA-IS algorithm described in:
+
+> G. Nong, S. Zhang, W. H. Chan,  
+> "Linear Suffix Array Construction by Almost Pure Induced-Sorting",  
+> Data Compression Conference, 2009.
+
 ---
 
 ## 1. Project Overview
 
-The program reads a DNA sequence from a FASTA file, constructs the data
-structures required for an Enhanced Suffix Array representation, and detects
-maximal and/or supermaximal exact repeats.
+The program reads a DNA sequence from a FASTA file, constructs the data structures required for an Enhanced Suffix Array representation, and detects maximal and/or supermaximal exact repeats.
 
 The implementation contains:
 
-- Suffix Array construction
+- three Suffix Array construction algorithms
 - Inverse Suffix Array construction
 - LCP Array construction
 - Burrows-Wheeler Transform (BWT)
@@ -37,8 +40,8 @@ The implementation contains:
 - CSV output
 - runtime measurements
 - memory measurements
-- benchmark support
-- Python scripts for synthetic data generation and benchmark visualization
+- configurable benchmark support
+- Python scripts for synthetic data generation, benchmark analysis, and visualization
 
 The final implementation is written in C++17.
 
@@ -56,16 +59,13 @@ lcp_array
 bwt
 ```
 
-The implementation does not explicitly append the terminal suffix `$` to the
-input sequence.
+The final ESA representation does not explicitly store a terminal suffix `$`.
 
-Instead, sequence boundaries are handled implicitly.
+For the SA-IS construction, the input is internally encoded with a unique lexicographically smallest sentinel. The sentinel suffix is removed before the resulting Suffix Array is returned to the rest of the program.
 
-For the BWT, `$` is used as a special left-context symbol for an occurrence
-starting at position `0`.
+For the BWT, `$` is used as a special left-context symbol for an occurrence starting at position `0`.
 
-For LCP interval processing, a virtual final LCP value of `0` is used to close
-remaining intervals.
+For LCP interval processing, a virtual final LCP value of `0` is used to close remaining intervals.
 
 ---
 
@@ -73,15 +73,13 @@ remaining intervals.
 
 ### 3.1 Suffix Array
 
-Two Suffix Array construction implementations are provided.
+Three Suffix Array construction implementations are provided.
 
 #### Baseline implementation
 
-The baseline implementation uses the prefix-doubling approach together with
-`std::sort`.
+The baseline implementation uses the prefix-doubling approach together with `std::sort`.
 
-Its purpose is mainly to provide a reference implementation for the
-experimental comparison.
+Its purpose is mainly to provide a reference implementation for experimental comparison.
 
 Approximate asymptotic complexity:
 
@@ -89,10 +87,9 @@ Approximate asymptotic complexity:
 O(n log² n)
 ```
 
-#### Optimized implementation
+#### Optimized prefix-doubling implementation
 
-The optimized implementation also uses prefix doubling, but replaces the
-general comparison sort with counting-based sorting of equivalence classes.
+The optimized implementation also uses prefix doubling, but replaces the general comparison sort with counting-based sorting of equivalence classes.
 
 Approximate asymptotic complexity:
 
@@ -100,7 +97,28 @@ Approximate asymptotic complexity:
 O(n log n)
 ```
 
-The optimized implementation is used by the final version of the program.
+#### SA-IS implementation
+
+The final Suffix Array construction uses SA-IS (Suffix Array Induced Sorting).
+
+The algorithm:
+
+- classifies suffix positions as L-type or S-type;
+- identifies LMS positions;
+- performs induced sorting;
+- assigns names to LMS substrings;
+- recursively solves the reduced problem when necessary;
+- induces the complete Suffix Array from the sorted LMS suffixes.
+
+The original sequence is internally mapped to an integer alphabet and a unique sentinel value `0` is appended. After construction, the sentinel suffix is removed so that the external Suffix Array has the same size as the original sequence.
+
+For an integer alphabet, the theoretical complexity is:
+
+```text
+O(n)
+```
+
+SA-IS is used by the final version of the program.
 
 ---
 
@@ -108,8 +126,7 @@ The optimized implementation is used by the final version of the program.
 
 The LCP Array is constructed using the Kasai algorithm.
 
-The implementation first constructs the inverse Suffix Array and then computes
-the LCP values in linear time.
+The implementation first constructs the inverse Suffix Array and then computes the LCP values in linear time.
 
 Approximate complexity:
 
@@ -126,11 +143,9 @@ Supermaximal repeats are detected using LCP intervals.
 For a candidate LCP interval, the implementation checks:
 
 1. whether the interval corresponds to a local maximum in the LCP Array;
-2. whether the BWT characters representing the left contexts of all
-   occurrences are pairwise distinct.
+2. whether the BWT characters representing the left contexts of all occurrences are pairwise distinct.
 
-This follows the characterization of supermaximal repeats described by
-Abouelhoda et al.
+This follows the characterization of supermaximal repeats described by Abouelhoda et al.
 
 ---
 
@@ -138,14 +153,11 @@ Abouelhoda et al.
 
 A reference implementation for maximal repeated pairs is included.
 
-Occurrences inside an LCP interval are separated into groups representing
-different right contexts.
+Occurrences inside an LCP interval are separated into groups representing different right contexts.
 
-Pairs of occurrences from different groups are considered, and their left
-contexts are compared.
+Pairs of occurrences from different groups are considered, and their left contexts are compared.
 
-A pair is accepted when the two occurrences cannot be extended with the same
-character either to the left or to the right.
+A pair is accepted when the two occurrences cannot be extended with the same character either to the left or to the right.
 
 ---
 
@@ -153,24 +165,19 @@ character either to the left or to the right.
 
 Two implementations are available.
 
-The baseline implementation first generates maximal repeated pairs and then
-derives distinct maximal repeat strings from them.
+The baseline implementation first generates maximal repeated pairs and then derives distinct maximal repeat strings from them.
 
-The final implementation avoids explicitly materializing all maximal repeated
-pairs.
+The final implementation avoids explicitly materializing all maximal repeated pairs.
 
-Instead, it processes the LCP interval tree bottom-up and stores left-context
-sets using:
+Instead, it processes the LCP interval tree bottom-up and stores left-context sets using:
 
 ```cpp
 std::bitset<256>
 ```
 
-This allows the implementation to directly determine whether an LCP interval
-represents a maximal repeat.
+This allows the implementation to directly determine whether an LCP interval represents a maximal repeat.
 
-The final program outputs distinct maximal repeat strings together with all
-their occurrence positions.
+The final program outputs distinct maximal repeat strings together with all their occurrence positions.
 
 ---
 
@@ -199,9 +206,10 @@ Required Python version:
 Python 3
 ```
 
-The plotting script additionally requires:
+The benchmark-analysis and plotting scripts additionally require:
 
 ```text
+pandas
 matplotlib
 ```
 
@@ -237,6 +245,7 @@ master-rad-esa/
 │   └── suffix_array.cpp
 │
 ├── scripts/
+│   ├── analyze_suffix_array.py
 │   ├── generate_dna.py
 │   └── plot_benchmarks.py
 │
@@ -257,15 +266,13 @@ master-rad-esa/
 └── build/
 ```
 
-The `build/` directory is generated locally and is not required to be stored
-in the repository.
+The `build/` directory is generated locally and is not required to be stored in the repository.
 
 ---
 
 # 6. Building the Project
 
-The following commands should be executed from the root directory of the
-project.
+The following commands should be executed from the root directory of the project.
 
 For example:
 
@@ -328,9 +335,11 @@ Available options are:
 
 --implementation baseline
 --implementation optimized-sa
+--implementation sais
 --implementation final
 
 --benchmark
+--benchmark-name NAME
 ```
 
 If no repeat type is specified, the default is:
@@ -402,12 +411,12 @@ data/processed/repeats/tests/test_supermaximal.csv
 
 # 9. Comparing Implementations
 
-Three configurations are available.
+Four configurations are available.
 
 ## Baseline
 
 ```text
-baseline Suffix Array
+baseline prefix-doubling Suffix Array
 +
 baseline maximal-repeat detection
 ```
@@ -423,7 +432,7 @@ Run:
 ## Optimized Suffix Array
 
 ```text
-optimized Suffix Array
+optimized prefix-doubling Suffix Array
 +
 baseline maximal-repeat detection
 ```
@@ -436,10 +445,28 @@ Run:
 
 ---
 
+## SA-IS
+
+```text
+SA-IS Suffix Array
++
+baseline maximal-repeat detection
+```
+
+Run:
+
+```powershell
+.\build\Release\master_rad_esa.exe data\raw\tests\test.fasta --min-length 2 --type maximal --implementation sais
+```
+
+This configuration is used to compare the Suffix Array construction algorithms while keeping maximal-repeat detection unchanged.
+
+---
+
 ## Final implementation
 
 ```text
-optimized Suffix Array
+SA-IS Suffix Array
 +
 optimized maximal-repeat detection
 ```
@@ -450,11 +477,11 @@ Run:
 .\build\Release\master_rad_esa.exe data\raw\tests\test.fasta --min-length 2 --type maximal --implementation final
 ```
 
-All three configurations should produce the same maximal-repeat results.
+All four configurations should produce the same maximal-repeat results.
 
 They differ in the algorithms used internally and therefore in execution time.
 
-This separation is used for the optimization experiments.
+This separation allows the effects of Suffix Array construction and maximal-repeat optimization to be evaluated independently.
 
 ---
 
@@ -483,7 +510,7 @@ Lowercase characters are automatically converted to uppercase.
 
 Whitespace inside sequence lines is ignored.
 
-`N` is treated as a regular sequence symbol.
+`N` is accepted as a regular literal sequence symbol. It is not interpreted as a biological wildcard.
 
 The following are rejected:
 
@@ -497,8 +524,7 @@ The following are rejected:
 
 # 11. Repeat Output
 
-When benchmark mode is not enabled, detected repeats are printed to the
-terminal and written to CSV files.
+When benchmark mode is not enabled, detected repeats are printed to the terminal and written to CSV files.
 
 The CSV format is:
 
@@ -512,8 +538,7 @@ Example:
 ACGT,4,2,"0 4"
 ```
 
-The `positions` field contains zero-based positions in the original DNA
-sequence.
+The `positions` field contains zero-based positions in the original DNA sequence.
 
 Depending on the input file, output is automatically placed in one of:
 
@@ -568,8 +593,7 @@ Two different memory measurements are reported.
 
 ## ESA estimated memory
 
-This value estimates the memory occupied by the main persistent ESA
-structures:
+This value estimates the memory occupied by the main persistent ESA structures:
 
 ```text
 input text
@@ -583,18 +607,15 @@ It does not represent the complete memory consumption of the process.
 
 ## Peak process memory
 
-On Windows, peak process memory is measured using the process peak working
-set.
+On Windows, peak process memory is measured using the process peak working set.
 
-This includes memory used by the complete running application and is therefore
-larger than the ESA-only estimate.
+This includes memory used by the complete running application and is therefore larger than the ESA-only estimate.
 
 ---
 
 # 14. Benchmark Mode
 
-Benchmark mode suppresses detailed repeat output and writes performance
-measurements to CSV.
+Benchmark mode suppresses detailed repeat output and writes performance measurements to CSV.
 
 Enable it with:
 
@@ -608,23 +629,45 @@ Example:
 .\build\Release\master_rad_esa.exe data\raw\synthetic_10k.fasta --min-length 10 --type both --implementation final --benchmark
 ```
 
-For synthetic datasets, benchmark data is written to:
+By default, synthetic benchmark data is written to:
 
 ```text
 data/processed/benchmarks/synthetic_scalability.csv
 ```
 
-For datasets located under:
+By default, datasets located under:
 
 ```text
 data/raw/real/
 ```
 
-benchmark data is written to:
+are written to:
 
 ```text
 data/processed/benchmarks/real_datasets.csv
 ```
+
+A custom benchmark file can be selected without changing the source code by using:
+
+```text
+--benchmark-name NAME
+```
+
+For example:
+
+```powershell
+.\build\Release\master_rad_esa.exe data\raw\synthetic_100k.fasta --min-length 10 --type maximal --implementation sais --benchmark --benchmark-name suffix_array_comparison
+```
+
+This writes to:
+
+```text
+data/processed/benchmarks/suffix_array_comparison.csv
+```
+
+The `.csv` extension and benchmark directory are added automatically.
+
+`--benchmark-name` is intended to be used together with `--benchmark`.
 
 The benchmark CSV contains the following columns:
 
@@ -647,14 +690,13 @@ peak_memory_bytes
 repeat_count
 ```
 
-When `--type both` is used, one row is written for maximal repeats and another
-for supermaximal repeats.
+When `--type both` is used, one row is written for maximal repeats and another for supermaximal repeats.
 
-`total_time_ms` represents the complete execution of the program and is
-therefore the same measurement for both rows of the same run.
+`total_time_ms` represents the complete execution of the program and is therefore the same measurement for both rows of the same run.
 
-For direct comparison of maximal and supermaximal detection algorithms,
-`repeat_detection_time_ms` should be used.
+For direct comparison of maximal and supermaximal detection algorithms, `repeat_detection_time_ms` should be used.
+
+For direct comparison of Suffix Array construction algorithms, `suffix_array_time_ms` should be used.
 
 ---
 
@@ -684,11 +726,9 @@ The default random seed is:
 42
 ```
 
-Using the same length and seed produces the same synthetic sequence, allowing
-the experiments to be reproduced.
+Using the same length and seed produces the same synthetic sequence, allowing the experiments to be reproduced.
 
-For the scalability experiments, synthetic sequences of the following lengths
-were used:
+For the scalability experiments, synthetic sequences of the following lengths were used:
 
 ```text
 10,000
@@ -702,8 +742,7 @@ were used:
 
 # 16. Running a Synthetic Benchmark
 
-For example, to benchmark the final implementation on the 10,000-base
-synthetic dataset:
+For example, to benchmark the final implementation on the 10,000-base synthetic dataset:
 
 ```powershell
 .\build\Release\master_rad_esa.exe data\raw\synthetic_10k.fasta --min-length 10 --type both --implementation final --benchmark
@@ -716,8 +755,17 @@ Maximal repeats:       24
 Supermaximal repeats:  24
 ```
 
-For experimental measurements, each configuration can be executed multiple
-times and median values can then be used in the analysis.
+For experimental measurements, each configuration is executed multiple times and median values are used in the analysis.
+
+For the Suffix Array comparison, the following configurations are evaluated independently:
+
+```text
+baseline
+optimized-sa
+sais
+```
+
+while keeping maximal-repeat detection in its baseline form.
 
 ---
 
@@ -741,8 +789,7 @@ To run it in benchmark mode:
 .\build\Release\master_rad_esa.exe data\raw\real\sars_cov_2.fasta --min-length 10 --type both --implementation final --benchmark
 ```
 
-For the provided SARS-CoV-2 sequence, the expected counts with minimum repeat
-length `10` are:
+For the provided SARS-CoV-2 sequence, the expected counts with minimum repeat length `10` are:
 
 ```text
 Maximal repeats:       804
@@ -753,8 +800,7 @@ Supermaximal repeats:  749
 
 # 18. Real Datasets Used in the Experimental Evaluation
 
-The experimental evaluation includes several publicly available genomic
-sequences.
+The experimental evaluation includes several publicly available genomic sequences.
 
 The current dataset collection includes:
 
@@ -765,18 +811,23 @@ Bacillus subtilis 168
 Escherichia coli K-12 MG1655
 ```
 
-The real-data benchmark results are stored in:
+The real-data benchmark results for the final implementation are stored in:
 
 ```text
 data/processed/benchmarks/real_datasets.csv
+```
+
+The dedicated Suffix Array comparison is stored in:
+
+```text
+data/processed/benchmarks/real_suffix_array_comparison.csv
 ```
 
 ---
 
 # 19. Python Environment for Plot Generation
 
-If a Python virtual environment is desired, it can be created from the project
-root.
+If a Python virtual environment is desired, it can be created from the project root.
 
 On Windows:
 
@@ -790,10 +841,10 @@ Activate it with:
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install Matplotlib:
+Install the required packages:
 
 ```powershell
-python -m pip install matplotlib
+python -m pip install pandas matplotlib
 ```
 
 The prompt should then normally show the active environment, for example:
@@ -806,7 +857,7 @@ The prompt should then normally show the active environment, for example:
 
 # 20. Generating Benchmark Plots
 
-The plotting script is:
+The general benchmark plotting script is:
 
 ```text
 scripts/plot_benchmarks.py
@@ -818,22 +869,7 @@ Run it from the project root:
 python scripts\plot_benchmarks.py
 ```
 
-The script reads:
-
-```text
-data/processed/benchmarks/optimization_comparison.csv
-data/processed/benchmarks/synthetic_scalability.csv
-```
-
-and calculates median values across repeated benchmark runs.
-
-The generated plots are stored in:
-
-```text
-data/processed/plots/
-```
-
-The generated plots are:
+It reads the existing optimization and scalability benchmark files and generates:
 
 ```text
 01_suffix_array_optimization.png
@@ -845,21 +881,78 @@ The generated plots are:
 07_repeat_counts.png
 ```
 
-The script additionally writes the calculated speedup summary to the benchmark
-results directory.
+The plots are stored in:
+
+```text
+data/processed/plots/
+```
+
+The script additionally writes the calculated speedup summary to the benchmark results directory.
 
 ---
 
-# 21. Experimental Methodology
+# 21. Suffix Array Benchmark Analysis
 
-The experimental evaluation consists of two main parts.
+The dedicated Suffix Array analysis script is:
 
-## Synthetic datasets
+```text
+scripts/analyze_suffix_array.py
+```
+
+Run:
+
+```powershell
+python scripts\analyze_suffix_array.py
+```
+
+The script reads:
+
+```text
+data/processed/benchmarks/suffix_array_comparison.csv
+data/processed/benchmarks/real_suffix_array_comparison.csv
+```
+
+It:
+
+- verifies that all compared implementations produce consistent repeat counts;
+- calculates median values across repeated runs;
+- calculates SA-IS speedup relative to the baseline and optimized prefix-doubling implementations;
+- writes summary CSV files;
+- generates synthetic and real-data comparison plots.
+
+The generated summary files are:
+
+```text
+data/processed/benchmarks/suffix_array_synthetic_summary.csv
+data/processed/benchmarks/suffix_array_real_summary.csv
+```
+
+The generated plots are:
+
+```text
+08_suffix_array_scalability.png
+09_suffix_array_real_datasets.png
+10_suffix_array_synthetic_speedup.png
+11_suffix_array_real_speedup.png
+```
+
+The synthetic construction-time plot shows the scalability of all three Suffix Array implementations.
+
+The real-data construction-time plot uses a logarithmic y-axis because the datasets span a wide range of sequence lengths and construction times.
+
+The speedup plots compare SA-IS directly against the optimized prefix-doubling implementation. A speedup value greater than `1` means that SA-IS is faster.
+
+---
+
+# 22. Experimental Methodology
+
+The experimental evaluation contains three complementary parts.
+
+## Synthetic scalability experiments
 
 Synthetic data is used for controlled scalability experiments.
 
-The sequence length is gradually increased while keeping the sequence
-generation method reproducible.
+The sequence length is gradually increased while keeping the sequence generation method reproducible.
 
 The experiments measure:
 
@@ -872,31 +965,66 @@ The experiments measure:
 - peak process memory
 - number of detected repeats
 
+## Suffix Array construction comparison
+
+Three Suffix Array construction algorithms are compared:
+
+```text
+baseline prefix-doubling        O(n log² n)
+optimized prefix-doubling       O(n log n)
+SA-IS                           O(n)
+```
+
+The comparison uses both synthetic and real genomic datasets.
+
+To isolate the effect of Suffix Array construction, the `baseline`, `optimized-sa`, and `sais` configurations all use the same baseline maximal-repeat detection algorithm.
+
+Each configuration is executed five times and the median `suffix_array_time_ms` value is used.
+
+The experiments show that the optimized prefix-doubling implementation can be faster on smaller inputs because of lower constant overhead, while SA-IS becomes increasingly advantageous on larger inputs.
+
 ## Real genomic datasets
 
-Publicly available DNA sequences are used to evaluate the practical behavior
-of the implementation on real biological data.
-
-The experiments measure the same runtime and memory properties as the
-synthetic experiments.
+Publicly available DNA sequences are used to evaluate the practical behavior of the implementation on real biological data.
 
 For performance evaluation, the Release build is used.
 
-Repeated measurements are summarized using median values to reduce the effect
-of runtime noise.
+Repeated measurements are summarized using median values to reduce the effect of runtime noise.
 
 ---
 
-# 22. Validation
+# 23. Validation
 
-The implementation was validated using small sequences for which the expected
-repeats can be manually determined.
+The implementation was validated using small sequences for which the expected Suffix Arrays and repeats can be manually determined.
 
-Additionally, the baseline and optimized implementations were compared on the
-same inputs.
+The three Suffix Array implementations were directly compared on:
 
-For the provided test sequence with minimum repeat length `2`, all three
-implementation configurations produce the same maximal repeats:
+```text
+BANANA
+MISSISSIPPI
+AAAAA
+A
+empty input
+ACGTACGTGATTACANN
+```
+
+For all tested inputs:
+
+```text
+baseline Suffix Array
+=
+optimized prefix-doubling Suffix Array
+=
+SA-IS Suffix Array
+```
+
+The complete program was additionally tested using:
+
+```text
+data/raw/tests/test.fasta
+```
+
+For the provided test sequence with minimum repeat length `2`, all four implementation configurations produce the same maximal repeats:
 
 ```text
 ACGT
@@ -904,12 +1032,13 @@ AC
 TAC
 ```
 
-This provides a regression check that the performance optimizations do not
-change the detected maximal-repeat set.
+The Suffix Array benchmark analysis also verifies that repeat counts remain consistent between the compared implementations.
+
+This provides a regression check that the performance optimizations do not change the detected maximal-repeat set.
 
 ---
 
-# 23. Notes
+# 24. Notes
 
 The project focuses on exact direct repeats.
 
@@ -925,13 +1054,20 @@ The FASTA parser supports one DNA record at a time and the alphabet:
 A C G T N
 ```
 
+`N` is accepted as a literal symbol and has no special wildcard semantics.
+
 ---
 
-# 24. Reference
+# 25. References
 
 M. I. Abouelhoda, S. Kurtz, E. Ohlebusch,  
 "Replacing suffix trees with enhanced suffix arrays",  
 Journal of Discrete Algorithms, Volume 2, Issue 1, 2004, pp. 53-86.
 
-The paper provides the theoretical basis for the Enhanced Suffix Array
-structures and the LCP-interval-based repeat analysis used in this project.
+G. Nong, S. Zhang, W. H. Chan,  
+"Linear Suffix Array Construction by Almost Pure Induced-Sorting",  
+Data Compression Conference, 2009.
+
+The first paper provides the theoretical basis for the Enhanced Suffix Array structures and the LCP-interval-based repeat analysis used in this project.
+
+The second paper provides the basis for the linear-time SA-IS Suffix Array construction used by the final implementation.
