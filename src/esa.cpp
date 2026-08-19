@@ -16,9 +16,10 @@ EnhancedSuffixArray build_esa(const std::string& text, ESAConstructionMetrics* m
     const auto sa_start = Clock::now();
     if (implementation == SuffixArrayImplementation::Baseline) {
         esa.suffix_array = build_suffix_array_baseline(text);
-    }
-    else {
+    } else if (implementation == SuffixArrayImplementation::Optimized){
         esa.suffix_array = build_suffix_array_optimized(text);
+    } else {
+    esa.suffix_array = build_suffix_array_sais(text);
     }
 
     const auto sa_end = Clock::now();

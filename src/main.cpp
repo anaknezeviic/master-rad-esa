@@ -16,6 +16,7 @@
 enum class ImplementationType {
     Baseline,
     OptimizedSA,
+    SAIS,
     Final
 };
 
@@ -47,13 +48,17 @@ ImplementationType parse_implementation(const std::string& value) {
         return ImplementationType::OptimizedSA;
     }
 
+    if (value == "sais") {
+    return ImplementationType::SAIS;
+    }
+
     if (value == "final") {
         return ImplementationType::Final;
     }
 
     throw std::runtime_error(
         "Invalid implementation: " + value +
-        ". Expected baseline, optimized-sa, or final."
+        ". Expected baseline, optimized-sa, sais or final."
     );
 }
 
@@ -69,7 +74,8 @@ int main(int argc, char* argv[]) {
             << "[--min-length N] "
             << "[--type maximal|supermaximal|both] "
             << "[--benchmark] "
-            << "[--implementation baseline|optimized-sa|final]\n";
+            << "[--benchmark-name NAME] "
+            << "[--implementation baseline|optimized-sa|sais|final]\n";
 
         return 1;
     }
@@ -103,6 +109,7 @@ int main(int argc, char* argv[]) {
 
     std::string benchmark_output_path;
 
+
     if (input_directory == "real") {
         benchmark_output_path =
             "data/processed/benchmarks/real_datasets.csv";
@@ -115,6 +122,7 @@ int main(int argc, char* argv[]) {
     RepeatOptions options;
 
     bool benchmark_mode = false;
+    std::string benchmark_name;
 
     ImplementationType implementation = ImplementationType::Final;
 
@@ -146,7 +154,15 @@ int main(int argc, char* argv[]) {
                 options.type = parse_repeat_type(argv[++i]);
             } else if (argument == "--benchmark") {
                 benchmark_mode = true;
-            } else if (argument == "--implementation") {
+            } else if (argument == "--benchmark-name") {
+                if (i + 1 >= argc) {
+                    throw std::runtime_error(
+                        "Missing value after --benchmark-output."
+                    );
+                }
+
+                benchmark_name = argv[++i];
+            }else if (argument == "--implementation") {
 
                 if (i + 1 >= argc) {
                     throw std::runtime_error(
@@ -162,6 +178,19 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        if (!benchmark_name.empty() && !benchmark_mode) {
+            throw std::runtime_error(
+                "--benchmark-name can only be used together with --benchmark."
+            );
+        }
+
+        if (!benchmark_name.empty()) {
+            benchmark_output_path =
+                "data/processed/benchmarks/" +
+                benchmark_name +
+                ".csv";
+        }
+
         std::string implementation_name;
 
         switch (implementation) {
@@ -170,6 +199,9 @@ int main(int argc, char* argv[]) {
                 break;
             case ImplementationType::OptimizedSA:
                 implementation_name = "optimized_sa";
+                break;
+            case ImplementationType::SAIS:
+                implementation_name = "sais";
                 break;
             case ImplementationType::Final:
                 implementation_name = "final";
@@ -211,11 +243,25 @@ int main(int argc, char* argv[]) {
 
         std::cout << '\n';
 
-        SuffixArrayImplementation suffix_array_implementation = SuffixArrayImplementation::Optimized;
+        SuffixArrayImplementation suffix_array_implementation;
 
-        if (implementation == ImplementationType::Baseline) {
-            suffix_array_implementation = SuffixArrayImplementation::Baseline;
-        }
+        switch (implementation) {
+            case ImplementationType::Baseline:
+                suffix_array_implementation =
+                    SuffixArrayImplementation::Baseline;
+                break;
+
+            case ImplementationType::OptimizedSA:
+                suffix_array_implementation =
+                    SuffixArrayImplementation::Optimized;
+                break;
+
+            case ImplementationType::SAIS:
+            case ImplementationType::Final:
+                suffix_array_implementation =
+                    SuffixArrayImplementation::SAIS;
+                break;
+}
 
         const auto esa_start = Clock::now();
 
@@ -238,11 +284,14 @@ int main(int argc, char* argv[]) {
 
             std::vector<Repeat> maximal_repeats;
 
-            if (implementation == ImplementationType::Baseline || implementation == ImplementationType::OptimizedSA) {
+            if (implementation == ImplementationType::Baseline ||
+                implementation == ImplementationType::OptimizedSA ||
+                implementation == ImplementationType::SAIS ) {
                 maximal_repeats = find_maximal_repeats_baseline(esa, options);
             } else {
                 maximal_repeats = find_maximal_repeats(esa, options);
             }
+            
             const auto maximal_end = Clock::now();
 
             maximal_time_ms = std::chrono::duration<double, std::milli>(maximal_end - maximal_start).count();
