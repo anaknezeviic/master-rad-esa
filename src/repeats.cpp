@@ -6,57 +6,94 @@
 #include <string>
 #include <set>
 
-std::vector<Repeat> find_supermaximal_repeats(const EnhancedSuffixArray& esa, const RepeatOptions& options) {
+namespace {
+
+using LeftContextMask = std::bitset<256>;
+
+bool has_distinct_left_contexts(
+    const LeftContextMask& first,
+    const LeftContextMask& second
+) {
+    if (!first.any() || !second.any()) {
+        return false;
+    }
+
+    return (first | second).count() >= 2;
+}
+
+}
+
+std::vector<Repeat> find_supermaximal_repeats(
+    const EnhancedSuffixArray& esa,
+    const RepeatOptions& options
+) {
+    const std::vector<LCPIntervalNode> nodes =
+        build_lcp_interval_tree(esa.lcp_array);
+
+    return find_supermaximal_repeats(
+        esa,
+        options,
+        nodes
+    );
+}
+
+std::vector<Repeat> find_supermaximal_repeats(
+    const EnhancedSuffixArray& esa,
+    const RepeatOptions& options,
+    const std::vector<LCPIntervalNode>& nodes
+) {
     std::vector<Repeat> repeats;
 
-    const std::vector<LCPInterval> intervals = build_lcp_intervals(esa.lcp_array);
-
-    for (const LCPInterval& interval : intervals) {
-        const int lcp_value = interval.lcp_value;
-
-        if (lcp_value < options.min_length) {
-            continue;
-        }
-        bool is_local_maximum = true;
-
-        for (int k = interval.left + 1; k <= interval.right; ++k) {
-            if (esa.lcp_array[k] != lcp_value) {
-                is_local_maximum = false;
-                break;
-            }
-        }
-
-        if (!is_local_maximum) {
+    for (const LCPIntervalNode& node : nodes) {
+        if (node.lcp_value == 0) {
             continue;
         }
 
-        std::set<char> preceding_characters;
-        bool bwt_characters_are_distinct = true;
+        if (node.lcp_value < options.min_length) {
+            continue;
+        }
 
-        for (int k = interval.left; k <= interval.right; ++k) {
-            const char character = esa.bwt[k];
+        if (!node.children.empty()) {
+            continue;
+        }
 
-            if (preceding_characters.count(character) > 0) {
-                bwt_characters_are_distinct = false;
+        LeftContextMask left_contexts;
+        bool left_contexts_are_distinct = true;
+
+        for (int k = node.left; k <= node.right; ++k) {
+            const unsigned char left_character =
+                static_cast<unsigned char>(esa.bwt[k]);
+
+            if (left_contexts.test(left_character)) {
+                left_contexts_are_distinct = false;
                 break;
             }
 
-            preceding_characters.insert(character);
+            left_contexts.set(left_character);
         }
 
-        if (!bwt_characters_are_distinct) {
+        if (!left_contexts_are_distinct) {
             continue;
         }
 
         Repeat repeat;
-        repeat.length = lcp_value;
-        repeat.sequence = esa.text.substr(esa.suffix_array[interval.left], lcp_value);
+        repeat.length = node.lcp_value;
+        repeat.sequence = esa.text.substr(
+            esa.suffix_array[node.left],
+            node.lcp_value
+        );
 
-        for (int k = interval.left; k <= interval.right; ++k) {
-            repeat.positions.push_back(esa.suffix_array[k]);
+        repeat.positions.reserve(
+            node.right - node.left + 1
+        );
+
+        for (int k = node.left; k <= node.right; ++k) {
+            repeat.positions.push_back(
+                esa.suffix_array[k]
+            );
         }
 
-        repeats.push_back(repeat);
+        repeats.push_back(std::move(repeat));
     }
 
     return repeats;
@@ -83,13 +120,7 @@ std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(const EnhancedSuffi
         std::vector<std::vector<int>> groups;
         int current = node.left;
 
-        std::vector<int> sorted_children = node.children;
-        std::sort(sorted_children.begin(), sorted_children.end(),
-            [&](int first, int second){
-                return nodes[first].left < nodes[second].left;
-            });
-
-        for (int child_index : sorted_children) {
+        for (int child_index : node.children) {
             const LCPIntervalNode& child = nodes[child_index];
 
             while (current < child.left) {
@@ -189,52 +220,67 @@ std::vector<Repeat> find_maximal_repeats_baseline(const EnhancedSuffixArray& esa
 
     return repeats;
 }
+std::vector<Repeat> find_maximal_repeats(
+    const EnhancedSuffixArray& esa,
+    const RepeatOptions& options
+) {
+    const std::vector<LCPIntervalNode> nodes =
+        build_lcp_interval_tree(esa.lcp_array);
 
-std::vector<Repeat> find_maximal_repeats(const EnhancedSuffixArray& esa, const RepeatOptions& options) {
-    
-    using LeftContextMask = std::bitset<256>;
+    return find_maximal_repeats(
+        esa,
+        options,
+        nodes
+    );
+}
 
-    const std::vector<LCPIntervalNode> nodes = build_lcp_interval_tree(esa.lcp_array);
-
+std::vector<Repeat> find_maximal_repeats(
+    const EnhancedSuffixArray& esa,
+    const RepeatOptions& options,
+    const std::vector<LCPIntervalNode>& nodes
+) {
     std::vector<Repeat> repeats;
 
     if (nodes.empty()) {
         return repeats;
     }
 
-    std::vector<LeftContextMask> node_left_contexts(nodes.size());
+    std::vector<LeftContextMask> node_left_contexts(
+        nodes.size()
+    );
 
-    for (std::size_t node_index = 0; node_index < nodes.size(); ++node_index) {
-        const LCPIntervalNode& node = nodes[node_index];
+    for (std::size_t node_index = 0;
+         node_index < nodes.size();
+         ++node_index) {
+
+        const LCPIntervalNode& node =
+            nodes[node_index];
 
         LeftContextMask accumulated_contexts;
         LeftContextMask complete_node_contexts;
 
         bool is_maximal_repeat = false;
 
-        std::vector<int> sorted_children = node.children;
-
-        std::sort(
-            sorted_children.begin(),
-            sorted_children.end(),
-            [&](int first, int second) {
-                return nodes[first].left < nodes[second].left;
-            }
-        );
-
         int current = node.left;
 
-        for (int child_index : sorted_children) {
-            const LCPIntervalNode& child = nodes[child_index];
+        for (int child_index : node.children) {
+            const LCPIntervalNode& child =
+                nodes[child_index];
 
             while (current < child.left) {
                 LeftContextMask group_contexts;
 
-                const unsigned char left_character = static_cast<unsigned char>(esa.bwt[current]);
+                const unsigned char left_character =
+                    static_cast<unsigned char>(
+                        esa.bwt[current]
+                    );
 
                 group_contexts.set(left_character);
 
-                if (accumulated_contexts.any() && (accumulated_contexts | group_contexts).count() >= 2) {
+                if (has_distinct_left_contexts(
+                        accumulated_contexts,
+                        group_contexts
+                    )) {
                     is_maximal_repeat = true;
                 }
 
@@ -244,25 +290,36 @@ std::vector<Repeat> find_maximal_repeats(const EnhancedSuffixArray& esa, const R
                 ++current;
             }
 
-            const LeftContextMask& group_contexts = node_left_contexts[child_index];
+            const LeftContextMask& group_contexts =
+                node_left_contexts[child_index];
 
-            if (accumulated_contexts.any() && (accumulated_contexts | group_contexts).count() >= 2) {
+            if (has_distinct_left_contexts(
+                    accumulated_contexts,
+                    group_contexts
+                )) {
                 is_maximal_repeat = true;
             }
 
             accumulated_contexts |= group_contexts;
             complete_node_contexts |= group_contexts;
+
             current = child.right + 1;
         }
 
         while (current <= node.right) {
             LeftContextMask group_contexts;
 
-            const unsigned char left_character = static_cast<unsigned char>(esa.bwt[current]);
+            const unsigned char left_character =
+                static_cast<unsigned char>(
+                    esa.bwt[current]
+                );
 
             group_contexts.set(left_character);
 
-            if (accumulated_contexts.any() && (accumulated_contexts | group_contexts).count() >= 2) {
+            if (has_distinct_left_contexts(
+                    accumulated_contexts,
+                    group_contexts
+                )) {
                 is_maximal_repeat = true;
             }
 
@@ -272,7 +329,8 @@ std::vector<Repeat> find_maximal_repeats(const EnhancedSuffixArray& esa, const R
             ++current;
         }
 
-        node_left_contexts[node_index] = complete_node_contexts;
+        node_left_contexts[node_index] =
+            complete_node_contexts;
 
         if (node.lcp_value == 0) {
             continue;
@@ -289,14 +347,23 @@ std::vector<Repeat> find_maximal_repeats(const EnhancedSuffixArray& esa, const R
         Repeat repeat;
 
         repeat.length = node.lcp_value;
-        repeat.sequence = esa.text.substr(esa.suffix_array[node.left], node.lcp_value);
-        repeat.positions.reserve(node.right - node.left + 1);
+        repeat.sequence = esa.text.substr(
+            esa.suffix_array[node.left],
+            node.lcp_value
+        );
 
-        for (int k = node.left; k <= node.right; ++k) {
-            repeat.positions.push_back(esa.suffix_array[k]);
+        repeat.positions.reserve(
+            node.right - node.left + 1
+        );
+
+        for (int k = node.left;
+             k <= node.right;
+             ++k) {
+
+            repeat.positions.push_back(
+                esa.suffix_array[k]
+            );
         }
-
-        std::sort(repeat.positions.begin(), repeat.positions.end());
 
         repeats.push_back(std::move(repeat));
     }

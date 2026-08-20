@@ -36,6 +36,50 @@ bool contains_repeat(
     return false;
 }
 
+bool test_lcp_interval_tree_order() {
+    const std::string text =
+        "ACGTACGTGATTACANN";
+
+    const EnhancedSuffixArray esa =
+        build_esa(text);
+
+    const std::vector<LCPIntervalNode> nodes =
+        build_lcp_interval_tree(esa.lcp_array);
+
+    for (std::size_t parent_index = 0;
+         parent_index < nodes.size();
+         ++parent_index) {
+
+        for (int child_index :
+             nodes[parent_index].children) {
+
+            if (child_index >=
+                static_cast<int>(parent_index)) {
+
+                std::cerr
+                    << "LCP interval tree is not "
+                    << "stored in bottom-up order.\n";
+
+                return false;
+            }
+
+            if (nodes[child_index].left <
+                    nodes[parent_index].left ||
+                nodes[child_index].right >
+                    nodes[parent_index].right) {
+
+                std::cerr
+                    << "LCP interval child is outside "
+                    << "its parent interval.\n";
+
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 
 bool test_published_repeat_example() {
     const std::string text =
@@ -235,6 +279,14 @@ bool test_dna_repeat_example() {
 int main() {
     bool success = true;
 
+    if (!test_lcp_interval_tree_order()) {
+        success = false;
+    }
+    else {
+        std::cout
+            << "LCP interval tree order test passed.\n";
+    }
+    
     if (!test_published_repeat_example()) {
         success = false;
     }

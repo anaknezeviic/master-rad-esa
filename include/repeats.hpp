@@ -41,6 +41,12 @@ std::vector<Repeat> find_supermaximal_repeats(
     const RepeatOptions& options
 );
 
+std::vector<Repeat> find_supermaximal_repeats(
+    const EnhancedSuffixArray& esa,
+    const RepeatOptions& options,
+    const std::vector<LCPIntervalNode>& nodes
+);
+
 std::vector<MaximalRepeatedPair> find_maximal_repeated_pairs(
     const EnhancedSuffixArray& esa,
     const RepeatOptions& options
@@ -54,6 +60,12 @@ std::vector<Repeat> find_maximal_repeats_baseline(
 std::vector<Repeat> find_maximal_repeats(
     const EnhancedSuffixArray& esa,
     const RepeatOptions& options
+);
+
+std::vector<Repeat> find_maximal_repeats(
+    const EnhancedSuffixArray& esa,
+    const RepeatOptions& options,
+    const std::vector<LCPIntervalNode>& nodes
 );
 
 #endif

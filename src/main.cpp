@@ -279,47 +279,91 @@ int main(int argc, char* argv[]) {
         std::size_t maximal_repeat_count = 0;
         std::size_t supermaximal_repeat_count = 0;
 
-        if (options.type == RepeatType::Maximal || options.type == RepeatType::Both) {
+        std::vector<LCPIntervalNode> repeat_nodes;
+
+        if (options.type == RepeatType::Maximal ||
+            options.type == RepeatType::Both) {
+
             const auto maximal_start = Clock::now();
 
             std::vector<Repeat> maximal_repeats;
 
             if (implementation == ImplementationType::Baseline ||
                 implementation == ImplementationType::OptimizedSA ||
-                implementation == ImplementationType::SAIS ) {
-                maximal_repeats = find_maximal_repeats_baseline(esa, options);
-            } else {
-                maximal_repeats = find_maximal_repeats(esa, options);
+                implementation == ImplementationType::SAIS) {
+
+                maximal_repeats =
+                    find_maximal_repeats_baseline(
+                        esa,
+                        options
+                    );
             }
-            
+            else {
+                if (options.type == RepeatType::Both) {
+
+                    repeat_nodes =
+                        build_lcp_interval_tree(
+                            esa.lcp_array
+                        );
+
+                    maximal_repeats =
+                        find_maximal_repeats(
+                            esa,
+                            options,
+                            repeat_nodes
+                        );
+                }
+                else {
+                    maximal_repeats =
+                        find_maximal_repeats(
+                            esa,
+                            options
+                        );
+                }
+            }
+
             const auto maximal_end = Clock::now();
 
-            maximal_time_ms = std::chrono::duration<double, std::milli>(maximal_end - maximal_start).count();
+            maximal_time_ms =
+                std::chrono::duration<double, std::milli>(
+                    maximal_end - maximal_start
+                ).count();
 
-            maximal_repeat_count = maximal_repeats.size();
+            maximal_repeat_count =
+                maximal_repeats.size();
 
             if (!benchmark_mode) {
                 std::cout << "Maximal repeats:\n";
 
                 if (maximal_repeats.empty()) {
                     std::cout << "None\n";
-                } else {
-                    for (const Repeat& repeat : maximal_repeats) {
+                }
+                else {
+                    for (const Repeat& repeat :
+                        maximal_repeats) {
+
                         std::cout
                             << repeat.sequence
                             << " (length = "
                             << repeat.length
                             << ") positions: ";
 
-                        for (int position : repeat.positions) {
-                            std::cout << position << ' ';
+                        for (int position :
+                            repeat.positions) {
+
+                            std::cout
+                                << position
+                                << ' ';
                         }
 
                         std::cout << '\n';
                     }
                 }
 
-                write_repeats_csv(maximal_output_path, maximal_repeats);
+                write_repeats_csv(
+                    maximal_output_path,
+                    maximal_repeats
+                );
 
                 std::cout
                     << "\nMaximal repeats written to: "
@@ -328,16 +372,40 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (options.type == RepeatType::Supermaximal || options.type == RepeatType::Both) {
+        if (options.type == RepeatType::Supermaximal ||
+            options.type == RepeatType::Both) {
+
             const auto supermaximal_start = Clock::now();
 
-            const std::vector<Repeat> supermaximal_repeats = find_supermaximal_repeats(esa, options);
+            std::vector<Repeat> supermaximal_repeats;
+
+            if (implementation == ImplementationType::Final &&
+                options.type == RepeatType::Both) {
+
+                supermaximal_repeats =
+                    find_supermaximal_repeats(
+                        esa,
+                        options,
+                        repeat_nodes
+                    );
+            }
+            else {
+                supermaximal_repeats =
+                    find_supermaximal_repeats(
+                        esa,
+                        options
+                    );
+            }
 
             const auto supermaximal_end = Clock::now();
 
-            supermaximal_time_ms = std::chrono::duration<double, std::milli>(supermaximal_end - supermaximal_start).count();
+            supermaximal_time_ms =
+                std::chrono::duration<double, std::milli>(
+                    supermaximal_end - supermaximal_start
+                ).count();
 
-            supermaximal_repeat_count = supermaximal_repeats.size();
+            supermaximal_repeat_count =
+                supermaximal_repeats.size();
 
             if (!benchmark_mode) {
                 std::cout << "Supermaximal repeats:\n";
