@@ -35,7 +35,7 @@ EnhancedSuffixArray build_esa(const std::string& text, ESAConstructionMetrics* m
     const auto inverse_sa_end = Clock::now();
 
     const auto lcp_start = Clock::now();
-    esa.lcp_array = build_lcp_array(text, esa.suffix_array);
+    esa.lcp_array = build_lcp_array(text, esa.suffix_array, esa.inverse_suffix_array);
     const auto lcp_end = Clock::now();
 
     const auto bwt_start = Clock::now();

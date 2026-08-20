@@ -6,7 +6,8 @@
 
 std::vector<int> build_lcp_array(
     const std::string& text,
-    const std::vector<int>& suffix_array
+    const std::vector<int>& suffix_array,
+    const std::vector<int>& inverse_suffix_array
 );
 
 #endif
