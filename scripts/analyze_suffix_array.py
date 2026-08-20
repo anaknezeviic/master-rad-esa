@@ -13,14 +13,14 @@ REAL_INPUT = BENCHMARK_DIR / "real_suffix_array_comparison.csv"
 SYNTHETIC_SUMMARY = BENCHMARK_DIR / "suffix_array_synthetic_summary.csv"
 REAL_SUMMARY = BENCHMARK_DIR / "suffix_array_real_summary.csv"
 
-SYNTHETIC_PLOT = PLOT_DIR / "08_suffix_array_scalability.png"
-REAL_PLOT = PLOT_DIR / "09_suffix_array_real_datasets.png"
+SYNTHETIC_PLOT = PLOT_DIR / "05_suffix_array_scalability.png"
+REAL_PLOT = PLOT_DIR / "06_suffix_array_real_datasets.png"
 SYNTHETIC_SPEEDUP_PLOT = (
-    PLOT_DIR / "10_suffix_array_synthetic_speedup.png"
+    PLOT_DIR / "07_suffix_array_synthetic_speedup.png"
 )
 
 REAL_SPEEDUP_PLOT = (
-    PLOT_DIR / "11_suffix_array_real_speedup.png"
+    PLOT_DIR / "08_suffix_array_real_speedup.png"
 )
 
 

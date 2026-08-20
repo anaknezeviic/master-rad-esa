@@ -267,7 +267,7 @@ def plot_synthetic_runtime(
 
     output = (
         PLOT_DIR
-        / "12_repeat_algorithm_scalability.png"
+        / "09_repeat_algorithm_scalability.png"
     )
 
     plt.savefig(output, dpi=300)
@@ -316,7 +316,7 @@ def plot_synthetic_speedup(
 
     output = (
         PLOT_DIR
-        / "13_repeat_algorithm_synthetic_speedup.png"
+        / "10_repeat_algorithm_synthetic_speedup.png"
     )
 
     plt.savefig(output, dpi=300)
@@ -372,7 +372,7 @@ def plot_real_runtime(
 
     output = (
         PLOT_DIR
-        / "14_repeat_algorithm_real_datasets.png"
+        / "11_repeat_algorithm_real_datasets.png"
     )
 
     plt.savefig(output, dpi=300)
@@ -434,7 +434,7 @@ def plot_real_speedup(
 
     output = (
         PLOT_DIR
-        / "15_repeat_algorithm_real_speedup.png"
+        / "12_repeat_algorithm_real_speedup.png"
     )
 
     plt.savefig(output, dpi=300)
