@@ -233,6 +233,11 @@ master-rad-esa/
 │   ├── repeats.hpp
 │   └── suffix_array.hpp
 │
+├── tests/
+│   ├── test_suffix_array.cpp
+│   ├── test_repeats.cpp
+│   └── test_fasta.cpp
+│
 ├── src/
 │   ├── benchmark.cpp
 │   ├── esa.cpp
@@ -313,6 +318,36 @@ On Windows PowerShell it can therefore be executed as:
 ```
 
 For performance measurements, the `Release` configuration should be used.
+
+---
+
+## 6.3 Running the Automated Tests
+
+The project includes automated regression tests using CTest.
+
+After configuring and building the project, run:
+
+ctest --test-dir build -C Release --output-on-failure
+
+The test suite currently contains three test groups:
+
+suffix_array_tests
+repeat_tests
+fasta_tests
+
+A successful run should report:
+
+100% tests passed, 0 tests failed
+
+The --output-on-failure option prints detailed information if one of the tests fails.
+
+The complete build and test workflow is therefore:
+
+cmake -S . -B build
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+
+The Release configuration is used both for performance experiments and for the final regression-test runs.
 
 ---
 
@@ -993,48 +1028,187 @@ Repeated measurements are summarized using median values to reduce the effect of
 
 ---
 
-# 23. Validation
+# 23. Validation and Automated Tests
 
-The implementation was validated using small sequences for which the expected Suffix Arrays and repeats can be manually determined.
+The implementation is validated using automated regression tests integrated with CTest.
 
-The three Suffix Array implementations were directly compared on:
+The tests cover three main components:
 
-```text
+- Suffix Array construction
+
+- maximal and supermaximal repeat detection
+
+- FASTA parsing
+
+The tests can be executed with:
+
+ctest --test-dir build -C Release --output-on-failure
+
+## 23.1 Suffix Array Regression Tests
+
+The file:
+
+tests/test_suffix_array.cpp
+
+compares all three Suffix Array construction implementations:
+
+baseline prefix-doubling
+optimized prefix-doubling
+SA-IS
+
+The implementations are tested on several small strings for which the expected Suffix Array is known.
+
+The current test cases include:
+
+empty string
+A
 BANANA
 MISSISSIPPI
 AAAAA
-A
-empty input
 ACGTACGTGATTACANN
-```
 
-For all tested inputs:
+For example, the expected Suffix Array for BANANA is:
 
-```text
+5 3 1 0 4 2
+
+For MISSISSIPPI, the expected Suffix Array is:
+
+10 7 4 1 0 9 8 6 3 5 2
+
+For every test case, the regression test verifies that:
+
 baseline Suffix Array
 =
 optimized prefix-doubling Suffix Array
 =
 SA-IS Suffix Array
-```
+=
+expected Suffix Array
 
-The complete program was additionally tested using:
+This provides a direct correctness check for the SA-IS implementation and ensures that later optimizations do not change the lexicographic suffix ordering.
 
-```text
+## 23.2 Published Maximal and Supermaximal Repeat Example
+
+The file:
+
+tests/test_repeats.cpp
+
+contains a regression test based on a published example from the literature on context-sensitive repeats.
+
+The test string is:
+
+NLAREPLNOREPTFCGIREPTLSIG
+
+with minimum repeat length:
+
+3
+
+The expected maximal repeats are:
+
+REP     positions 3 9 17
+REPT    positions 9 17
+
+The expected supermaximal repeat is:
+
+REPT    positions 9 17
+
+REP is maximal but not supermaximal because two of its occurrences can be extended to form the longer repeat REPT.
+
+REPT cannot be extended to a longer repeated substring and is therefore supermaximal.
+
+The automated test verifies both the detected repeat strings and their occurrence positions.
+
+Occurrence positions are compared as sets, so their output order does not affect the correctness test.
+
+## 23.3 DNA Repeat Regression Test
+
+The same test executable also validates repeat detection on the DNA sequence:
+
+ACGTACGTGATTACANN
+
+with minimum repeat length:
+
+2
+
+The expected maximal repeats are:
+
+ACGT    length 4    positions 0 4
+AC      length 2    positions 0 4 12
+TAC     length 3    positions 3 11
+
+The expected supermaximal repeats are:
+
+ACGT    length 4    positions 0 4
+TAC     length 3    positions 3 11
+
+Therefore, the expected counts are:
+
+Maximal repeats:       3
+Supermaximal repeats:  2
+
+This test provides a regression check for the complete ESA-based maximal and supermaximal repeat detection logic.
+
+## 23.4 FASTA Parser Tests
+
+The file:
+
+tests/test_fasta.cpp
+
+tests both successful and unsuccessful FASTA parsing.
+
+The valid input:
+
 data/raw/tests/test.fasta
-```
 
-For the provided test sequence with minimum repeat length `2`, all four implementation configurations produce the same maximal repeats:
+must be parsed as:
 
-```text
-ACGT
-AC
-TAC
-```
+Header:
+test_sequence
 
-The Suffix Array benchmark analysis also verifies that repeat counts remain consistent between the compared implementations.
+Sequence:
+ACGTACGTGATTACANN
 
-This provides a regression check that the performance optimizations do not change the detected maximal-repeat set.
+The following invalid inputs must be rejected:
+
+data/raw/tests/test_invalid_char.fasta
+data/raw/tests/test_multiple_records.fasta
+data/raw/tests/test_no_header.fasta
+
+These cases verify that the parser rejects:
+
+- unsupported nucleotide symbols
+
+- more than one FASTA record
+
+- sequence input without a FASTA header
+
+The parser also normalizes lowercase nucleotide symbols to uppercase and accepts only:
+
+A C G T N
+
+N is treated as a literal sequence symbol and does not have wildcard semantics.
+
+## 23.5 Purpose of the Regression Suite
+
+The automated tests are intended to be executed after changes to:
+
+suffix_array.cpp
+lcp.cpp
+esa.cpp
+repeats.cpp
+fasta.cpp
+
+They provide a regression check that algorithmic optimizations do not change previously validated results.
+
+This is particularly important when comparing multiple implementations with different theoretical complexities:
+
+Baseline Suffix Array          O(n log² n)
+Optimized prefix-doubling      O(n log n)
+SA-IS                          O(n)
+
+All implementations used for performance comparison must preserve the same logical results.
+
+The CTest suite provides an automated way to verify this requirement before running larger benchmark experiments.
 
 ---
 
